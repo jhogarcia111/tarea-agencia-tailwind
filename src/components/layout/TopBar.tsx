@@ -1,27 +1,15 @@
 
-import { Bell, Menu, Search, X } from 'lucide-react';
+import { Bell, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
-interface TopBarProps {
-  toggleSidebar: () => void;
-  isSidebarOpen: boolean;
-}
-
-export function TopBar({ toggleSidebar, isSidebarOpen }: TopBarProps) {
+export function TopBar() {
   return (
     <header className="bg-background border-b border-border sticky top-0 z-20">
       <div className="flex items-center justify-between h-16 px-4">
         <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="mr-2"
-            aria-label="Toggle sidebar"
-          >
-            {isSidebarOpen ? <ChevronLeft /> : <ChevronRight />}
-          </Button>
+          <SidebarTrigger className="mr-2" />
           <div className="relative hidden md:block w-64">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -48,6 +36,3 @@ export function TopBar({ toggleSidebar, isSidebarOpen }: TopBarProps) {
     </header>
   );
 }
-
-// Import the required components from lucide-react
-import { ChevronLeft, ChevronRight } from 'lucide-react';
