@@ -1,11 +1,12 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { toast } from "sonner";
 
 // Define types for our data
 export interface User {
   id: number;
   name: string;
   email: string;
+  password: string; // Added password field
   role: string;
   status: 'active' | 'inactive';
   avatar: string;
@@ -32,10 +33,49 @@ export interface Task {
   description?: string;
 }
 
+export interface ErrorLog {
+  id: number;
+  userId: number | null;
+  userRole: string | null;
+  location: string;
+  form: string | null;
+  message: string;
+  date: string;
+}
+
+export interface ActivityLog {
+  id: number;
+  userId: number;
+  userName: string;
+  action: string;
+  location: string;
+  date: string;
+}
+
+export interface AuthState {
+  isLoggedIn: boolean;
+  currentUser: User | null;
+}
+
 interface DataContextType {
+  // Auth state
+  auth: AuthState;
+  login: (email: string, password: string) => { success: boolean; message: string };
+  logout: () => void;
+  
+  // Original data management
   users: User[];
   clients: Client[];
   tasks: Task[];
+  
+  // Error and activity logs
+  errorLogs: ErrorLog[];
+  activityLogs: ActivityLog[];
+  
+  // Add error log
+  logError: (error: Omit<ErrorLog, 'id' | 'date' | 'userId' | 'userRole'>) => void;
+  
+  // Original CRUD operations
   addUser: (user: Omit<User, 'id' | 'avatar'>) => void;
   updateUser: (user: User) => void;
   deleteUser: (id: number) => void;
@@ -45,11 +85,16 @@ interface DataContextType {
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (task: Task) => void;
   deleteTask: (id: number) => void;
+  
+  // Getters
   getUserById: (id: number) => User | undefined;
   getClientById: (id: number) => Client | undefined;
   getTaskById: (id: number) => Task | undefined;
   getTasksByClient: (clientName: string) => Task[];
   getTasksByAssignee: (userName: string) => Task[];
+  
+  // Activity tracking
+  getDailyActivityCount: () => { date: string; count: number }[];
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -59,7 +104,8 @@ const initialUsers: User[] = [
   {
     id: 1,
     name: "María López",
-    email: "maria@agencia.com",
+    email: "admin@agencia.com",
+    password: "admin123", // Added password
     role: "admin",
     status: "active",
     avatar: "ML",
@@ -68,6 +114,7 @@ const initialUsers: User[] = [
     id: 2,
     name: "Carlos Rodríguez",
     email: "carlos@agencia.com",
+    password: "carlos123", // Added password
     role: "designer",
     status: "active",
     avatar: "CR",
@@ -76,6 +123,7 @@ const initialUsers: User[] = [
     id: 3,
     name: "Ana Martínez",
     email: "ana@agencia.com",
+    password: "ana123", // Added password
     role: "marketing",
     status: "active",
     avatar: "AM",
@@ -84,6 +132,7 @@ const initialUsers: User[] = [
     id: 4,
     name: "Juan Pérez",
     email: "juan@agencia.com",
+    password: "juan123", // Added password
     role: "copywriter",
     status: "inactive",
     avatar: "JP",
@@ -92,6 +141,7 @@ const initialUsers: User[] = [
     id: 5,
     name: "Laura Sánchez",
     email: "laura@agencia.com",
+    password: "laura123", // Added password
     role: "manager",
     status: "active",
     avatar: "LS",
@@ -221,6 +271,10 @@ const initialTasks: Task[] = [
   },
 ];
 
+const initialErrorLogs: ErrorLog[] = [];
+
+const initialActivityLogs: ActivityLog[] = [];
+
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Load data from localStorage if available
   const [users, setUsers] = useState<User[]>(() => {
@@ -237,6 +291,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedTasks = localStorage.getItem('tasks');
     return savedTasks ? JSON.parse(savedTasks) : initialTasks;
   });
+  
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>(() => {
+    const savedErrorLogs = localStorage.getItem('errorLogs');
+    return savedErrorLogs ? JSON.parse(savedErrorLogs) : initialErrorLogs;
+  });
+  
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
+    const savedActivityLogs = localStorage.getItem('activityLogs');
+    return savedActivityLogs ? JSON.parse(savedActivityLogs) : initialActivityLogs;
+  });
+  
+  // Auth state
+  const [auth, setAuth] = useState<AuthState>(() => {
+    const savedAuth = localStorage.getItem('auth');
+    return savedAuth ? JSON.parse(savedAuth) : { isLoggedIn: false, currentUser: null };
+  });
 
   // Save to localStorage whenever data changes
   useEffect(() => {
@@ -250,7 +320,100 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
+  
+  useEffect(() => {
+    localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
+  }, [errorLogs]);
+  
+  useEffect(() => {
+    localStorage.setItem('activityLogs', JSON.stringify(activityLogs));
+  }, [activityLogs]);
+  
+  useEffect(() => {
+    localStorage.setItem('auth', JSON.stringify(auth));
+  }, [auth]);
+  
+  // Login function
+  const login = (email: string, password: string) => {
+    const user = users.find(u => u.email === email && u.password === password);
+    
+    if (user) {
+      // Only allow active users to login
+      if (user.status === "inactive") {
+        logError({
+          location: "Login Page",
+          form: "Login Form",
+          message: "Intento de acceso con cuenta inactiva: " + email
+        });
+        return { 
+          success: false, 
+          message: "Esta cuenta está inactiva. Por favor, contacte al administrador."
+        };
+      }
+      
+      const updatedAuth = { isLoggedIn: true, currentUser: user };
+      setAuth(updatedAuth);
+      
+      // Log activity
+      logActivity(user.id, user.name, "Inicio de sesión", "Login");
+      
+      return { success: true, message: "Inicio de sesión exitoso" };
+    } else {
+      // Check if user exists but password is wrong
+      const userExists = users.find(u => u.email === email);
+      
+      if (userExists) {
+        logError({
+          location: "Login Page",
+          form: "Login Form",
+          message: "Contraseña incorrecta para el usuario: " + email
+        });
+        return { success: false, message: "Contraseña incorrecta" };
+      } else {
+        logError({
+          location: "Login Page",
+          form: "Login Form",
+          message: "Intento de acceso con usuario no registrado: " + email
+        });
+        return { success: false, message: "Usuario no registrado. Por favor, contacte al administrador." };
+      }
+    }
+  };
+  
+  // Logout function
+  const logout = () => {
+    if (auth.currentUser) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Cierre de sesión", "Logout");
+    }
+    setAuth({ isLoggedIn: false, currentUser: null });
+  };
 
+  // Log error
+  const logError = (error: Omit<ErrorLog, 'id' | 'date' | 'userId' | 'userRole'>) => {
+    const newError: ErrorLog = {
+      ...error,
+      id: errorLogs.length > 0 ? Math.max(...errorLogs.map(e => e.id)) + 1 : 1,
+      userId: auth.currentUser?.id || null,
+      userRole: auth.currentUser?.role || null,
+      date: new Date().toISOString(),
+    };
+    setErrorLogs([...errorLogs, newError]);
+  };
+  
+  // Log activity
+  const logActivity = (userId: number, userName: string, action: string, location: string) => {
+    const newActivity: ActivityLog = {
+      id: activityLogs.length > 0 ? Math.max(...activityLogs.map(a => a.id)) + 1 : 1,
+      userId,
+      userName,
+      action,
+      location,
+      date: new Date().toISOString(),
+    };
+    setActivityLogs([...activityLogs, newActivity]);
+  };
+  
+  // Wrap CRUD operations to log activities
   const addUser = (user: Omit<User, 'id' | 'avatar'>) => {
     const newUser: User = {
       ...user,
@@ -258,14 +421,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       avatar: user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
     };
     setUsers([...users, newUser]);
+    
+    if (auth.currentUser) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nuevo usuario: " + newUser.name, "Usuarios");
+    }
   };
 
   const updateUser = (updatedUser: User) => {
     setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
+    
+    if (auth.currentUser) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó usuario: " + updatedUser.name, "Usuarios");
+    }
   };
 
   const deleteUser = (id: number) => {
+    const userToDelete = users.find(u => u.id === id);
     setUsers(users.filter(user => user.id !== id));
+    
+    if (auth.currentUser && userToDelete) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Eliminó usuario: " + userToDelete.name, "Usuarios");
+    }
   };
 
   const addClient = (client: Omit<Client, 'id' | 'taskCount'>) => {
@@ -275,18 +451,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       taskCount: 0,
     };
     setClients([...clients, newClient]);
+    
+    if (auth.currentUser) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nuevo cliente: " + newClient.name, "Clientes");
+    }
   };
 
   const updateClient = (updatedClient: Client) => {
     setClients(clients.map(client => client.id === updatedClient.id ? updatedClient : client));
+    
+    if (auth.currentUser) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó cliente: " + updatedClient.name, "Clientes");
+    }
   };
 
   const deleteClient = (id: number) => {
-    setClients(clients.filter(client => client.id !== id));
-    // Also delete all tasks associated with this client
     const clientToDelete = clients.find(c => c.id === id);
+    setClients(clients.filter(client => client.id !== id));
+    
+    // Also delete all tasks associated with this client
     if (clientToDelete) {
+      const clientTasks = tasks.filter(task => task.client === clientToDelete.name);
       setTasks(tasks.filter(task => task.client !== clientToDelete.name));
+      
+      if (auth.currentUser) {
+        logActivity(
+          auth.currentUser.id, 
+          auth.currentUser.name, 
+          `Eliminó cliente: ${clientToDelete.name} y ${clientTasks.length} tareas asociadas`, 
+          "Clientes"
+        );
+      }
     }
   };
 
@@ -305,6 +500,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         taskCount: clients[clientIndex].taskCount + 1
       };
       updateClient(updatedClient);
+    }
+    
+    if (auth.currentUser) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nueva tarea: " + newTask.title, "Tareas");
     }
   };
 
@@ -334,6 +533,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateClient(newClientUpdated);
       }
     }
+    
+    if (auth.currentUser) {
+      logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó tarea: " + updatedTask.title, "Tareas");
+    }
   };
 
   const deleteTask = (id: number) => {
@@ -350,7 +553,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         updateClient(updatedClient);
       }
+      
+      if (auth.currentUser) {
+        logActivity(auth.currentUser.id, auth.currentUser.name, "Eliminó tarea: " + taskToDelete.title, "Tareas");
+      }
     }
+  };
+  
+  // Get daily activity count for the chart
+  const getDailyActivityCount = () => {
+    const counts: { [key: string]: number } = {};
+    
+    // Group activities by date (only the day part)
+    activityLogs.forEach(log => {
+      const date = new Date(log.date).toISOString().split('T')[0];
+      counts[date] = (counts[date] || 0) + 1;
+    });
+    
+    // Convert to array format for the chart
+    const result = Object.keys(counts).map(date => ({
+      date,
+      count: counts[date]
+    }));
+    
+    // Sort by date
+    return result.sort((a, b) => a.date.localeCompare(b.date));
   };
 
   const getUserById = (id: number) => users.find(user => user.id === id);
@@ -362,9 +589,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <DataContext.Provider
       value={{
+        auth,
+        login,
+        logout,
         users,
         clients,
         tasks,
+        errorLogs,
+        activityLogs,
+        logError,
         addUser,
         updateUser,
         deleteUser,
@@ -378,7 +611,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getClientById,
         getTaskById,
         getTasksByClient,
-        getTasksByAssignee
+        getTasksByAssignee,
+        getDailyActivityCount
       }}
     >
       {children}
