@@ -48,7 +48,7 @@ export function ClientForm({
     email: initialData?.email || "",
     phone: initialData?.phone || "",
     industry: initialData?.industry || "",
-    isActive: initialData?.isActive || true,
+    isActive: initialData?.isActive ?? true,
     notes: initialData?.notes || "",
   });
 

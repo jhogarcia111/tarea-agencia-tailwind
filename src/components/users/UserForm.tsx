@@ -42,7 +42,7 @@ export function UserForm({
     name: initialData?.name || "",
     email: initialData?.email || "",
     role: initialData?.role || "",
-    isActive: initialData?.isActive || true,
+    isActive: initialData?.isActive ?? true,
   });
 
   const handleChange = (
