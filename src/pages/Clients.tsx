@@ -1,4 +1,3 @@
-
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ClientTable } from "@/components/clients/ClientTable";
 import { ClientForm } from "@/components/clients/ClientForm";
@@ -7,12 +6,24 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Briefcase } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useData } from "@/context/DataContext";
+import { TaskByClientChart } from "@/components/dashboard/TaskByClientChart";
+import { TaskByUserChart } from "@/components/dashboard/TaskByUserChart";
+
+export interface Client {
+  id: number;
+  name: string;
+  email: string;
+  contactName?: string; // Added contactName property
+  // other properties
+}
 
 export default function Clients() {
   const [isClientFormOpen, setIsClientFormOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { getClientById } = useData();
   
   const isNewClientRoute = location.pathname === "/clients/new";
   const isEditClientRoute = location.pathname.includes("/clients/edit/");
@@ -43,8 +54,17 @@ export default function Clients() {
           </Button>
         </div>
 
+        <div className="grid gap-6 md:grid-cols-2">
+          <TaskByClientChart />
+          <TaskByUserChart />
+        </div>
+
         {/* Main content */}
-        {!isNewClientRoute && !isEditClientRoute && <ClientTable />}
+        {!isNewClientRoute && !isEditClientRoute && (
+          <>
+            <ClientTable />
+          </>
+        )}
 
         {/* New client form */}
         {isNewClientRoute && (
@@ -74,6 +94,17 @@ export default function Clients() {
                 <ClientForm
                   editMode={true}
                   onCancel={handleFormClose}
+                  initialData={
+                    id
+                      ? {
+                          ...getClientById(Number(id)),
+                          contactName: getClientById(Number(id))?.contactName || "",
+                          phone: getClientById(Number(id))?.phone || "",
+                          isActive: getClientById(Number(id))?.isActive || false,
+                          notes: getClientById(Number(id))?.notes || "",
+                        }
+                      : undefined
+                  }
                 />
               </div>
             </SheetContent>

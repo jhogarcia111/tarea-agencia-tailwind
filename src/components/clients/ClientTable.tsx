@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -116,7 +115,8 @@ export function ClientTable() {
                 {filteredClients.map((client) => (
                   <tr
                     key={client.id}
-                    className="border-b transition-colors hover:bg-muted/50"
+                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                    onClick={() => window.location.href = `/clients/edit/${client.id}`}
                   >
                     <td className="p-4 align-middle">
                       <div>

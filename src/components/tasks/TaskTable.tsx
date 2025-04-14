@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -159,6 +158,9 @@ export function TaskTable() {
                   <th className="h-12 px-4 text-left align-middle font-medium hidden md:table-cell">
                     Fecha Límite
                   </th>
+                  <th className="h-12 px-4 text-left align-middle font-medium hidden md:table-cell">
+                    Fecha Creada
+                  </th>
                   <th className="h-12 px-4 text-right align-middle font-medium">
                     Acciones
                   </th>
@@ -168,7 +170,8 @@ export function TaskTable() {
                 {filteredTasks.map((task) => (
                   <tr
                     key={task.id}
-                    className="border-b transition-colors hover:bg-muted/50"
+                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                    onClick={() => navigate(`/tasks/edit/${task.id}`)}
                   >
                     <td className="p-4 align-middle">
                       <div>
@@ -195,6 +198,9 @@ export function TaskTable() {
                         <span className="mr-2">{formatDate(task.dueDate)}</span>
                         <PriorityBadge priority={task.priority} />
                       </div>
+                    </td>
+                    <td className="p-4 align-middle hidden md:table-cell">
+                      {formatDate(task.createdDate)}
                     </td>
                     <td className="p-4 align-middle text-right">
                       <DropdownMenu>

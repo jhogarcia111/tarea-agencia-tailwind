@@ -34,6 +34,7 @@ interface TaskFormProps {
     status: string;
     priority: string;
     dueDate: string;
+    createdDate?: string;
   };
 }
 
@@ -58,6 +59,7 @@ export function TaskForm({
     status: initialData?.status || autoStatus || "pending",
     priority: initialData?.priority || "medium",
     dueDate: initialData?.dueDate || getTomorrow(),
+    createdDate: initialData?.createdDate || new Date().toISOString().split('T')[0], // New field
   });
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export function TaskForm({
           status: autoStatus || taskData.status,
           priority: taskData.priority,
           dueDate: taskData.dueDate,
+          createdDate: taskData.createdDate || new Date().toISOString().split('T')[0],
         });
       }
     }
@@ -163,6 +166,16 @@ export function TaskForm({
               placeholder="Detalles de la tarea..."
               rows={4}
               required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="createdDate">Fecha Creada</Label>
+            <Input
+              id="createdDate"
+              name="createdDate"
+              type="date"
+              value={formData.createdDate}
+              readOnly
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -4,6 +4,7 @@ import { DayPicker } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useData } from '@/context/DataContext';
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
@@ -60,5 +61,42 @@ function Calendar({
   );
 }
 Calendar.displayName = "Calendar";
+
+export function TaskDeadlineCalendar({ onDateClick }: { onDateClick?: (date: Date) => void }) {
+  const { tasks } = useData();
+
+  const taskColors = {
+    completed: 'bg-green-500',
+    'in-progress': 'bg-blue-500',
+    pending: 'bg-orange-500',
+  };
+
+  const events = tasks.map((task) => ({
+    date: new Date(task.dueDate),
+    title: task.title,
+    status: task.status,
+  }));
+
+  return (
+    <Calendar
+      className="rounded-lg border"
+      components={{
+        Day: ({ date }) => {
+          const event = events.find((e) => e.date.toDateString() === date.toDateString());
+          const dayClasses = event ? taskColors[event.status] : '';
+          return (
+            <div
+              className={`h-9 w-9 flex items-center justify-center ${dayClasses}`}
+              onClick={() => onDateClick?.(date)}
+            >
+              {date.getDate()}
+            </div>
+          );
+        },
+      }}
+      showOutsideDays={true}
+    />
+  );
+}
 
 export { Calendar };

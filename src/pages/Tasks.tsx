@@ -1,4 +1,3 @@
-
 import { MainLayout } from "@/components/layout/MainLayout";
 import { TaskTable } from "@/components/tasks/TaskTable";
 import { TaskForm } from "@/components/tasks/TaskForm";
@@ -7,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Plus } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { TaskDeadlineCalendar } from "@/components/ui/calendar";
 
 export default function Tasks() {
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -43,6 +43,10 @@ export default function Tasks() {
             <Plus className="mr-2 h-4 w-4" />
             Nueva Tarea
           </Button>
+        </div>
+
+        <div className="space-y-6">
+          <TaskDeadlineCalendar />
         </div>
 
         {/* Main content */}

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useData } from '@/context/DataContext';
@@ -11,6 +10,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  BarChart,
+  Bar,
 } from "recharts";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -60,6 +61,44 @@ export function PlatformUsageChart() {
               activeDot={{ r: 8 }} 
             />
           </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function UserComparisonChart() {
+  const { getUserActivityCounts } = useData();
+  const userData = getUserActivityCounts();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Comparación de Uso por Usuario</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart
+            data={userData}
+            margin={{
+              top: 5,
+              right: 30,
+              left: 20,
+              bottom: 5,
+            }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="user" />
+            <YAxis />
+            <Tooltip
+              formatter={(value) => [
+                `${value} actividades`,
+                'Uso por usuario'
+              ]}
+            />
+            <Legend />
+            <Bar dataKey="count" name="Actividades" fill="#34D399" />
+          </BarChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

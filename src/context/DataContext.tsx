@@ -32,6 +32,7 @@ export interface Task {
   dueDate: string;
   priority: 'low' | 'medium' | 'high';
   description?: string;
+  createdDate: string; // New field for creation date
 }
 
 export interface ErrorLog {
@@ -96,6 +97,10 @@ interface DataContextType {
   
   // Activity tracking
   getDailyActivityCount: () => { date: string; count: number }[];
+  getUserActivityCounts: () => { user: string; count: number }[];
+
+  // Password recovery
+  sendPasswordRecoveryEmail: (email: string) => { success: boolean; message: string };
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -206,6 +211,7 @@ const initialTasks: Task[] = [
     status: "completed",
     dueDate: "2025-04-10",
     priority: "high",
+    createdDate: "2025-04-01",
   },
   {
     id: 2,
@@ -215,6 +221,7 @@ const initialTasks: Task[] = [
     status: "in-progress",
     dueDate: "2025-04-15",
     priority: "medium",
+    createdDate: "2025-04-02",
   },
   {
     id: 3,
@@ -224,6 +231,7 @@ const initialTasks: Task[] = [
     status: "pending",
     dueDate: "2025-04-20",
     priority: "medium",
+    createdDate: "2025-04-03",
   },
   {
     id: 4,
@@ -233,6 +241,7 @@ const initialTasks: Task[] = [
     status: "in-progress",
     dueDate: "2025-04-16",
     priority: "high",
+    createdDate: "2025-04-04",
   },
   {
     id: 5,
@@ -242,6 +251,7 @@ const initialTasks: Task[] = [
     status: "pending",
     dueDate: "2025-04-25",
     priority: "low",
+    createdDate: "2025-04-05",
   },
   {
     id: 6,
@@ -251,6 +261,7 @@ const initialTasks: Task[] = [
     status: "pending",
     dueDate: "2025-04-30",
     priority: "low",
+    createdDate: "2025-04-06",
   },
   {
     id: 7,
@@ -260,6 +271,7 @@ const initialTasks: Task[] = [
     status: "in-progress",
     dueDate: "2025-04-28",
     priority: "high",
+    createdDate: "2025-04-07",
   },
   {
     id: 8,
@@ -269,6 +281,7 @@ const initialTasks: Task[] = [
     status: "completed",
     dueDate: "2025-04-05",
     priority: "medium",
+    createdDate: "2025-04-08",
   },
 ];
 
@@ -486,10 +499,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addTask = (task: Omit<Task, 'id'>) => {
+  const addTask = (task: Omit<Task, 'id' | 'createdDate'>) => {
     const newTask: Task = {
       ...task,
       id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1,
+      createdDate: new Date().toISOString().split('T')[0], // Set creation date to today
     };
     setTasks([...tasks, newTask]);
     
@@ -581,6 +595,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return result.sort((a, b) => a.date.localeCompare(b.date));
   };
 
+  const getUserActivityCounts = () => {
+    const counts: { [key: string]: number } = {};
+
+    activityLogs.forEach(log => {
+      counts[log.userName] = (counts[log.userName] || 0) + 1;
+    });
+
+    return Object.keys(counts).map(user => ({
+      user,
+      count: counts[user]
+    }));
+  };
+
   const getUserById = (id: number) => users.find(user => user.id === id);
   const getClientById = (id: number) => clients.find(client => client.id === id);
   const getTaskById = (id: number) => tasks.find(task => task.id === id);
@@ -632,7 +659,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getTaskById,
         getTasksByClient,
         getTasksByAssignee,
-        getDailyActivityCount
+        getDailyActivityCount,
+        getUserActivityCounts,
+        sendPasswordRecoveryEmail
       }}
     >
       {children}
@@ -647,3 +676,4 @@ export const useData = () => {
   }
   return context;
 };
+

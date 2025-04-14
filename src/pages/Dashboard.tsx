@@ -4,13 +4,63 @@ import { TaskDistributionChart } from "@/components/dashboard/TaskDistributionCh
 import { RecentTasks } from "@/components/dashboard/RecentTasks";
 import { ClientDistributionChart } from "@/components/dashboard/ClientDistributionChart";
 import { PlatformUsageChart } from "@/components/dashboard/PlatformUsageChart";
+import { UserTaskCharts } from "@/components/dashboard/UserTaskCharts";
+import { UserComparisonChart } from "@/components/dashboard/PlatformUsageChart";
+import { TaskDeadlineCalendar } from "@/components/ui/calendar";
+import { TaskStateChart } from "@/components/ui/TaskStateChart";
 import { useData } from "@/context/DataContext";
 import { Users, Briefcase, CheckSquare, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+export interface Task {
+  id: string;
+  name: string;
+  status: string;
+  dueDate: string;
+}
+
+interface TaskTableProps {
+  tasks: Task[];
+}
+
+export function TaskTable({ tasks }: TaskTableProps) {
+  return (
+    <table className="min-w-full border-collapse border border-gray-200">
+      <thead>
+        <tr>
+          <th className="border border-gray-300 px-4 py-2">Task Name</th>
+          <th className="border border-gray-300 px-4 py-2">Status</th>
+          <th className="border border-gray-300 px-4 py-2">Due Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {tasks.map((task) => (
+          <tr key={task.id}>
+            <td className="border border-gray-300 px-4 py-2">{task.name}</td>
+            <td className="border border-gray-300 px-4 py-2">{task.status}</td>
+            <td className="border border-gray-300 px-4 py-2">{new Date(task.dueDate).toLocaleDateString()}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 export default function Dashboard() {
   const { auth, users, clients, tasks, activityLogs } = useData();
+
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const filteredTasks = tasks.filter(task => {
+    if (!selectedDate) return true;
+    const taskDate = new Date(task.dueDate).toDateString();
+    return taskDate === selectedDate.toDateString();
+  });
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
+  };
 
   // Count completed tasks
   const completedTasks = tasks.filter(task => task.status === 'completed').length;
@@ -90,7 +140,24 @@ export default function Dashboard() {
           <ClientDistributionChart />
         </div>
 
-        <PlatformUsageChart />
+        <div className="grid gap-6 md:grid-cols-2">
+          <TaskDeadlineCalendar onDateClick={handleDateClick} />
+          <TaskStateChart />
+        </div>
+
+        {selectedDate && (
+          <div>
+            <h2 className="text-xl font-bold">Tareas para {selectedDate.toDateString()}</h2>
+            <TaskTable tasks={filteredTasks} />
+          </div>
+        )}
+
+        <UserTaskCharts />
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <PlatformUsageChart />
+          <UserComparisonChart />
+        </div>
 
         <RecentTasks />
       </div>

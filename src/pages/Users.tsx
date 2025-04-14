@@ -1,4 +1,4 @@
-
+import React from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { UserTable } from "@/components/users/UserTable";
 import { UserForm } from "@/components/users/UserForm";
@@ -25,6 +25,17 @@ export default function Users() {
   const handleFormClose = () => {
     navigate("/users");
     setIsUserFormOpen(false);
+  };
+
+  const getUserById = (userId: number) => {
+    // Replace this with the actual logic to fetch user data by ID
+    return {
+      id: userId,
+      name: "John Doe",
+      email: "johndoe@example.com",
+      role: "User", // Default role
+      isActive: true // Default active status
+    };
   };
 
   return (
@@ -74,6 +85,7 @@ export default function Users() {
                 <UserForm
                   editMode={true}
                   onCancel={handleFormClose}
+                  initialData={id ? getUserById(Number(id)) : undefined}
                 />
               </div>
             </SheetContent>

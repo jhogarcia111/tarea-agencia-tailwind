@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -112,7 +111,8 @@ export function UserTable() {
                 {filteredUsers.map((user) => (
                   <tr
                     key={user.id}
-                    className="border-b transition-colors hover:bg-muted/50"
+                    className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                    onClick={() => window.location.href = `/users/edit/${user.id}`}
                   >
                     <td className="p-4 align-middle">
                       <div className="flex items-center gap-3">
