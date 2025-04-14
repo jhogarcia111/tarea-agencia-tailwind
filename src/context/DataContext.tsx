@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
@@ -587,6 +586,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getTaskById = (id: number) => tasks.find(task => task.id === id);
   const getTasksByClient = (clientName: string) => tasks.filter(task => task.client === clientName);
   const getTasksByAssignee = (userName: string) => tasks.filter(task => task.assignee === userName);
+
+  const sendPasswordRecoveryEmail = (email: string) => {
+    const user = users.find(u => u.email === email);
+
+    if (!user) {
+      logError({
+        location: "Forgot Password",
+        form: "Password Recovery",
+        message: `Intento de recuperación para un correo no registrado: ${email}`
+      });
+      return { success: false, message: "Correo no registrado. Por favor, contacte al administrador." };
+    }
+
+    // Simulate sending an email
+    console.log(`Enviando correo a ${email} con la contraseña: ${user.password}`);
+    toast.success(`Correo enviado a ${email}`);
+
+    return { success: true, message: "Correo enviado con éxito." };
+  };
 
   return (
     <DataContext.Provider

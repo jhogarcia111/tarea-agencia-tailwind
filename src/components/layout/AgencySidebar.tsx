@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from "@/lib/utils";
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { useData } from '@/context/DataContext';
 import { toast } from "sonner";
+import { useSidebar } from '@/components/ui/sidebar';
 
 interface SidebarItemProps {
   to: string;
@@ -22,7 +22,9 @@ interface SidebarItemProps {
   isCollapsed?: boolean;
 }
 
-export function AgencySidebar({ isCollapsed = false }: { isCollapsed?: boolean }) {
+export function AgencySidebar() {
+  const { state, toggleSidebar } = useSidebar();
+  const isCollapsed = state === 'collapsed';
   const location = useLocation();
   const { auth, logout } = useData();
   

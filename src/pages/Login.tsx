@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useData } from '@/context/DataContext';
+import { useData, sendPasswordRecoveryEmail } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -36,6 +35,20 @@ export default function Login() {
     if (result.success) {
       toast.success('Inicio de sesión exitoso');
       navigate('/dashboard');
+    } else {
+      setError(result.message);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    if (!email) {
+      setError('Por favor ingrese su correo electrónico para recuperar la contraseña');
+      return;
+    }
+
+    const result = sendPasswordRecoveryEmail(email);
+    if (result.success) {
+      toast.success('Correo de recuperación enviado con éxito');
     } else {
       setError(result.message);
     }
@@ -92,6 +105,13 @@ export default function Login() {
             className="w-full bg-brand-500 hover:bg-brand-600"
           >
             Iniciar Sesión
+          </Button>
+          <Button 
+            variant="link" 
+            onClick={handleForgotPassword} 
+            className="w-full text-sm text-brand-500 mt-2"
+          >
+            Olvidé mi contraseña
           </Button>
         </CardFooter>
         <div className="px-6 py-4 text-center text-sm">
