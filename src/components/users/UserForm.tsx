@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -107,6 +108,7 @@ export function UserForm({
         email: formData.email,
         role: formData.role,
         status: formData.isActive ? 'active' : 'inactive',
+        password: formData.password, // Add the password field here
       });
       toast.success("Usuario creado con éxito");
     }
