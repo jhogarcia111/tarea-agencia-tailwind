@@ -16,55 +16,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { BadgeCheck, MoreHorizontal, Search, Trash2, UserPlus, X } from "lucide-react";
+import { BadgeCheck, Edit, MoreHorizontal, Search, Trash2, UserPlus, X } from "lucide-react";
 import { Badge } from "../ui/badge";
-
-// Mock user data
-const users = [
-  {
-    id: 1,
-    name: "María López",
-    email: "maria@agencia.com",
-    role: "admin",
-    status: "active",
-    avatar: "ML",
-  },
-  {
-    id: 2,
-    name: "Carlos Rodríguez",
-    email: "carlos@agencia.com",
-    role: "designer",
-    status: "active",
-    avatar: "CR",
-  },
-  {
-    id: 3,
-    name: "Ana Martínez",
-    email: "ana@agencia.com",
-    role: "marketing",
-    status: "active",
-    avatar: "AM",
-  },
-  {
-    id: 4,
-    name: "Juan Pérez",
-    email: "juan@agencia.com",
-    role: "copywriter",
-    status: "inactive",
-    avatar: "JP",
-  },
-  {
-    id: 5,
-    name: "Laura Sánchez",
-    email: "laura@agencia.com",
-    role: "manager",
-    status: "active",
-    avatar: "LS",
-  },
-];
+import { useData } from "@/context/DataContext";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function UserTable() {
+  const { users, deleteUser } = useData();
   const [filterText, setFilterText] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<number | null>(null);
 
   const filteredUsers = users.filter(
     (user) =>
@@ -72,6 +43,20 @@ export function UserTable() {
       user.email.toLowerCase().includes(filterText.toLowerCase()) ||
       user.role.toLowerCase().includes(filterText.toLowerCase())
   );
+
+  const handleDeleteClick = (userId: number) => {
+    setUserToDelete(userId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (userToDelete !== null) {
+      deleteUser(userToDelete);
+      toast.success("Usuario eliminado con éxito");
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
+  };
 
   return (
     <Card>
@@ -82,10 +67,6 @@ export function UserTable() {
             Gestione los usuarios de la agencia y sus permisos.
           </CardDescription>
         </div>
-        <Button className="bg-brand-500 hover:bg-brand-600">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Nuevo Usuario
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex items-center gap-2">
@@ -165,10 +146,12 @@ export function UserTable() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem>Editar usuario</DropdownMenuItem>
-                          <DropdownMenuItem>Cambiar permisos</DropdownMenuItem>
-                          <DropdownMenuItem>Cambiar estado</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-500">
+                          <DropdownMenuItem onClick={() => window.location.href = `/users/edit/${user.id}`}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar usuario
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(user.id)} className="text-red-500">
+                            <Trash2 className="h-4 w-4 mr-2" />
                             Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -181,6 +164,23 @@ export function UserTable() {
           </div>
         </div>
       </CardContent>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Eliminarás permanentemente el usuario y todos sus datos asociados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

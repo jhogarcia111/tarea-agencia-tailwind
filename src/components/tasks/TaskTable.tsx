@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,114 +19,86 @@ import { Input } from "@/components/ui/input";
 import { 
   CheckCircle2, 
   Clock, 
+  Edit,
   MoreHorizontal, 
-  Plus, 
   Search, 
+  Trash2,
   XCircle 
 } from "lucide-react";
 import { Badge } from "../ui/badge";
-
-// Mock task data
-const tasks = [
-  {
-    id: 1,
-    title: "Diseñar banner para campaña de Facebook",
-    client: "Acme Inc.",
-    assignee: "María López",
-    status: "completed",
-    dueDate: "2025-04-10",
-    priority: "high",
-  },
-  {
-    id: 2,
-    title: "Crear copy para publicación de Instagram",
-    client: "TechCorp",
-    assignee: "Carlos Rodríguez",
-    status: "in-progress",
-    dueDate: "2025-04-15",
-    priority: "medium",
-  },
-  {
-    id: 3,
-    title: "Análisis de rendimiento de campaña",
-    client: "Globex",
-    assignee: "Ana Martínez",
-    status: "pending",
-    dueDate: "2025-04-20",
-    priority: "medium",
-  },
-  {
-    id: 4,
-    title: "Optimizar palabras clave para SEO",
-    client: "Smith & Co",
-    assignee: "Juan Pérez",
-    status: "in-progress",
-    dueDate: "2025-04-16",
-    priority: "high",
-  },
-  {
-    id: 5,
-    title: "Revisión de contenido del blog",
-    client: "Acme Inc.",
-    assignee: "María López",
-    status: "pending",
-    dueDate: "2025-04-25",
-    priority: "low",
-  },
-  {
-    id: 6,
-    title: "Actualizar página de contacto",
-    client: "TechCorp",
-    assignee: "Carlos Rodríguez",
-    status: "pending",
-    dueDate: "2025-04-30",
-    priority: "low",
-  },
-  {
-    id: 7,
-    title: "Preparar informe mensual",
-    client: "Globex",
-    assignee: "Ana Martínez",
-    status: "in-progress",
-    dueDate: "2025-04-28",
-    priority: "high",
-  },
-  {
-    id: 8,
-    title: "Diseño de newsletter",
-    client: "Initech",
-    assignee: "Laura Sánchez",
-    status: "completed",
-    dueDate: "2025-04-05",
-    priority: "medium",
-  },
-];
+import { useData } from "@/context/DataContext";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useLocation, useNavigate } from "react-router-dom";
 
 export function TaskTable() {
+  const { tasks, deleteTask } = useData();
   const [filterText, setFilterText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Parse query parameters to filter by client if needed
+  const queryParams = new URLSearchParams(location.search);
+  const clientFilter = queryParams.get('client');
 
   const filteredTasks = tasks.filter(
     (task) =>
+      // Text filter
       (task.title.toLowerCase().includes(filterText.toLowerCase()) ||
         task.client.toLowerCase().includes(filterText.toLowerCase()) ||
         task.assignee.toLowerCase().includes(filterText.toLowerCase())) &&
-      (statusFilter === "all" || task.status === statusFilter)
+      // Status filter
+      (statusFilter === "all" || task.status === statusFilter) &&
+      // Client filter
+      (clientFilter ? task.client === clientFilter : true)
   );
+
+  const handleDeleteClick = (taskId: number) => {
+    setTaskToDelete(taskId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (taskToDelete !== null) {
+      deleteTask(taskToDelete);
+      toast.success("Tarea eliminada con éxito");
+      setDeleteDialogOpen(false);
+      setTaskToDelete(null);
+    }
+  };
+
+  // If we have a client filter, update the page title
+  useEffect(() => {
+    if (clientFilter) {
+      document.title = `Tareas de ${clientFilter}`;
+    } else {
+      document.title = "Tareas";
+    }
+  }, [clientFilter]);
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Tareas</CardTitle>
+          <CardTitle>
+            {clientFilter ? `Tareas de ${clientFilter}` : "Tareas"}
+          </CardTitle>
           <CardDescription>
             Gestione las tareas asignadas a los clientes.
           </CardDescription>
         </div>
-        <Button className="bg-brand-500 hover:bg-brand-600">
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Tarea
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex flex-col md:flex-row items-start md:items-center gap-2">
@@ -237,11 +209,21 @@ export function TaskTable() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                          <DropdownMenuItem>Editar tarea</DropdownMenuItem>
-                          <DropdownMenuItem>Cambiar estado</DropdownMenuItem>
-                          <DropdownMenuItem>Reasignar</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-500">
+                          <DropdownMenuItem onClick={() => navigate(`/tasks/edit/${task.id}`)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar tarea
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            const newStatus = task.status === 'pending' ? 'in-progress' : 
+                                             task.status === 'in-progress' ? 'completed' : 'pending';
+                            // This functionality will be implemented in TaskForm
+                            navigate(`/tasks/edit/${task.id}?setStatus=${newStatus}`);
+                          }}>
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Cambiar estado
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(task.id)} className="text-red-500">
+                            <Trash2 className="h-4 w-4 mr-2" />
                             Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -254,6 +236,23 @@ export function TaskTable() {
           </div>
         </div>
       </CardContent>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Eliminarás permanentemente esta tarea.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useData } from "@/context/DataContext";
+import { toast } from "sonner";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 interface TaskFormProps {
   editMode?: boolean;
@@ -41,15 +43,39 @@ export function TaskForm({
   onCancel,
   initialData,
 }: TaskFormProps) {
+  const { clients, users, addTask, updateTask, getTaskById } = useData();
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const autoStatus = queryParams.get('setStatus');
+
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     description: initialData?.description || "",
     client: initialData?.client || "",
     assignee: initialData?.assignee || "",
-    status: initialData?.status || "pending",
+    status: initialData?.status || autoStatus || "pending",
     priority: initialData?.priority || "medium",
-    dueDate: initialData?.dueDate || "",
+    dueDate: initialData?.dueDate || getTomorrow(),
   });
+
+  useEffect(() => {
+    if (editMode && id) {
+      const taskData = getTaskById(Number(id));
+      if (taskData) {
+        setFormData({
+          title: taskData.title,
+          description: taskData.description || "",
+          client: taskData.client,
+          assignee: taskData.assignee,
+          status: autoStatus || taskData.status,
+          priority: taskData.priority,
+          dueDate: taskData.dueDate,
+        });
+      }
+    }
+  }, [editMode, id, getTaskById, autoStatus]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -60,27 +86,49 @@ export function TaskForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (editMode && id) {
+      const taskData = getTaskById(Number(id));
+      if (taskData) {
+        updateTask({
+          ...taskData,
+          title: formData.title,
+          description: formData.description,
+          client: formData.client,
+          assignee: formData.assignee,
+          status: formData.status as 'pending' | 'in-progress' | 'completed',
+          priority: formData.priority as 'low' | 'medium' | 'high',
+          dueDate: formData.dueDate,
+        });
+        toast.success("Tarea actualizada con éxito");
+      }
+    } else {
+      addTask({
+        title: formData.title,
+        description: formData.description,
+        client: formData.client,
+        assignee: formData.assignee,
+        status: formData.status as 'pending' | 'in-progress' | 'completed',
+        priority: formData.priority as 'low' | 'medium' | 'high',
+        dueDate: formData.dueDate,
+      });
+      toast.success("Tarea creada con éxito");
+    }
+
     if (onSubmit) {
       onSubmit(formData);
+    } else {
+      navigate('/tasks');
     }
   };
 
-  // Mock data for clients and assignees (users)
-  const clients = [
-    { id: 1, name: "Acme Inc." },
-    { id: 2, name: "TechCorp" },
-    { id: 3, name: "Globex" },
-    { id: 4, name: "Smith & Co" },
-    { id: 5, name: "Initech" },
-  ];
-
-  const users = [
-    { id: 1, name: "María López" },
-    { id: 2, name: "Carlos Rodríguez" },
-    { id: 3, name: "Ana Martínez" },
-    { id: 4, name: "Juan Pérez" },
-    { id: 5, name: "Laura Sánchez" },
-  ];
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate('/tasks');
+    }
+  };
 
   return (
     <Card>
@@ -214,7 +262,7 @@ export function TaskForm({
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline" type="button" onClick={onCancel}>
+          <Button variant="outline" type="button" onClick={handleCancel}>
             Cancelar
           </Button>
           <Button className="bg-brand-500 hover:bg-brand-600" type="submit">
@@ -224,4 +272,10 @@ export function TaskForm({
       </form>
     </Card>
   );
+}
+
+function getTomorrow() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return tomorrow.toISOString().split('T')[0];
 }

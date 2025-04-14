@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +17,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useData } from "@/context/DataContext";
+import { toast } from "sonner";
+import { useNavigate, useParams } from "react-router-dom";
 
 interface UserFormProps {
   editMode?: boolean;
@@ -38,12 +40,34 @@ export function UserForm({
   onCancel,
   initialData,
 }: UserFormProps) {
+  const { addUser, updateUser, getUserById } = useData();
+  const navigate = useNavigate();
+  const { id } = useParams();
+
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     email: initialData?.email || "",
     role: initialData?.role || "",
     isActive: initialData?.isActive ?? true,
+    password: "",
+    confirmPassword: "",
   });
+
+  useEffect(() => {
+    if (editMode && id) {
+      const userData = getUserById(Number(id));
+      if (userData) {
+        setFormData({
+          name: userData.name,
+          email: userData.email,
+          role: userData.role,
+          isActive: userData.status === 'active',
+          password: "",
+          confirmPassword: "",
+        });
+      }
+    }
+  }, [editMode, id, getUserById]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -54,8 +78,51 @@ export function UserForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!editMode && formData.password !== formData.confirmPassword) {
+      toast.error("Las contraseñas no coinciden");
+      return;
+    }
+
+    if (formData.password && formData.password.length < 6) {
+      toast.error("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    if (editMode && id) {
+      const userData = getUserById(Number(id));
+      if (userData) {
+        updateUser({
+          ...userData,
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          status: formData.isActive ? 'active' : 'inactive',
+        });
+        toast.success("Usuario actualizado con éxito");
+      }
+    } else {
+      addUser({
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        status: formData.isActive ? 'active' : 'inactive',
+      });
+      toast.success("Usuario creado con éxito");
+    }
+
     if (onSubmit) {
       onSubmit(formData);
+    } else {
+      navigate('/users');
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate('/users');
     }
   };
 
@@ -131,6 +198,8 @@ export function UserForm({
               id="password"
               name="password"
               type="password"
+              value={formData.password}
+              onChange={handleChange}
               placeholder={editMode ? "Dejar en blanco para no cambiar" : "Contraseña"}
               required={!editMode}
             />
@@ -142,6 +211,8 @@ export function UserForm({
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
                 placeholder="Confirmar contraseña"
                 required={!editMode}
               />
@@ -149,7 +220,7 @@ export function UserForm({
           )}
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline" type="button" onClick={onCancel}>
+          <Button variant="outline" type="button" onClick={handleCancel}>
             Cancelar
           </Button>
           <Button className="bg-brand-500 hover:bg-brand-600" type="submit">

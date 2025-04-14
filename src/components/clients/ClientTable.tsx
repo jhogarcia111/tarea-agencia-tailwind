@@ -16,60 +16,26 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { BadgeCheck, Briefcase, MoreHorizontal, Search, X } from "lucide-react";
+import { BadgeCheck, Briefcase, Edit, MoreHorizontal, Search, Trash2, X } from "lucide-react";
 import { Badge } from "../ui/badge";
-
-// Mock client data
-const clients = [
-  {
-    id: 1,
-    name: "Acme Inc.",
-    contact: "John Smith",
-    email: "john@acme.com",
-    status: "active",
-    taskCount: 15,
-    industry: "Retail",
-  },
-  {
-    id: 2,
-    name: "TechCorp",
-    contact: "Emma Johnson",
-    email: "emma@techcorp.com",
-    status: "active",
-    taskCount: 8,
-    industry: "Technology",
-  },
-  {
-    id: 3,
-    name: "Globex",
-    contact: "Michael Brown",
-    email: "michael@globex.com",
-    status: "active",
-    taskCount: 12,
-    industry: "Finance",
-  },
-  {
-    id: 4,
-    name: "Smith & Co",
-    contact: "Sarah Williams",
-    email: "sarah@smithco.com",
-    status: "inactive",
-    taskCount: 5,
-    industry: "Healthcare",
-  },
-  {
-    id: 5,
-    name: "Initech",
-    contact: "David Miller",
-    email: "david@initech.com",
-    status: "active",
-    taskCount: 9,
-    industry: "Manufacturing",
-  },
-];
+import { useData } from "@/context/DataContext";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function ClientTable() {
+  const { clients, deleteClient } = useData();
   const [filterText, setFilterText] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<number | null>(null);
 
   const filteredClients = clients.filter(
     (client) =>
@@ -78,6 +44,20 @@ export function ClientTable() {
       client.email.toLowerCase().includes(filterText.toLowerCase()) ||
       client.industry.toLowerCase().includes(filterText.toLowerCase())
   );
+
+  const handleDeleteClick = (clientId: number) => {
+    setClientToDelete(clientId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (clientToDelete !== null) {
+      deleteClient(clientToDelete);
+      toast.success("Cliente eliminado con éxito");
+      setDeleteDialogOpen(false);
+      setClientToDelete(null);
+    }
+  };
 
   return (
     <Card>
@@ -88,10 +68,6 @@ export function ClientTable() {
             Gestione los clientes de la agencia y sus proyectos.
           </CardDescription>
         </div>
-        <Button className="bg-brand-500 hover:bg-brand-600">
-          <Briefcase className="h-4 w-4 mr-2" />
-          Nuevo Cliente
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="mb-4 flex items-center gap-2">
@@ -172,10 +148,16 @@ export function ClientTable() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                          <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                          <DropdownMenuItem>Editar cliente</DropdownMenuItem>
-                          <DropdownMenuItem>Ver tareas</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-500">
+                          <DropdownMenuItem onClick={() => window.location.href = `/clients/edit/${client.id}`}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Editar cliente
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => window.location.href = `/tasks?client=${client.name}`}>
+                            <Briefcase className="h-4 w-4 mr-2" />
+                            Ver tareas
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(client.id)} className="text-red-500">
+                            <Trash2 className="h-4 w-4 mr-2" />
                             Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -188,6 +170,23 @@ export function ClientTable() {
           </div>
         </div>
       </CardContent>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Eliminarás permanentemente el cliente y todas sus tareas asociadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

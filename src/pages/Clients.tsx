@@ -6,28 +6,19 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Briefcase } from "lucide-react";
+import { Routes, Route, useNavigate } from "react-router-dom";
 
 export default function Clients() {
   const [isClientFormOpen, setIsClientFormOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentClient, setCurrentClient] = useState<any>(null);
+  const navigate = useNavigate();
 
   const openNewClientForm = () => {
-    setIsEditing(false);
-    setCurrentClient(null);
+    navigate("/clients/new");
     setIsClientFormOpen(true);
   };
 
-  const openEditClientForm = (client: any) => {
-    setIsEditing(true);
-    setCurrentClient(client);
-    setIsClientFormOpen(true);
-  };
-
-  const handleFormSubmit = (data: any) => {
-    // Here you would handle the form submission
-    // For now, we'll just close the form
-    console.log("Form submitted with data:", data);
+  const handleFormClose = () => {
+    navigate("/clients");
     setIsClientFormOpen(false);
   };
 
@@ -47,25 +38,39 @@ export default function Clients() {
           </Button>
         </div>
 
-        <ClientTable />
-
-        <Sheet open={isClientFormOpen} onOpenChange={setIsClientFormOpen}>
-          <SheetContent className="sm:max-w-md overflow-y-auto">
-            <SheetHeader>
-              <SheetTitle>
-                {isEditing ? "Editar Cliente" : "Nuevo Cliente"}
-              </SheetTitle>
-            </SheetHeader>
-            <div className="mt-6">
-              <ClientForm
-                editMode={isEditing}
-                initialData={currentClient}
-                onSubmit={handleFormSubmit}
-                onCancel={() => setIsClientFormOpen(false)}
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
+        <Routes>
+          <Route path="/" element={<ClientTable />} />
+          <Route path="/new" element={
+            <Sheet open={true} onOpenChange={handleFormClose}>
+              <SheetContent className="sm:max-w-md overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Nuevo Cliente</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6">
+                  <ClientForm
+                    editMode={false}
+                    onCancel={handleFormClose}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          } />
+          <Route path="/edit/:id" element={
+            <Sheet open={true} onOpenChange={handleFormClose}>
+              <SheetContent className="sm:max-w-md overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Editar Cliente</SheetTitle>
+                </SheetHeader>
+                <div className="mt-6">
+                  <ClientForm
+                    editMode={true}
+                    onCancel={handleFormClose}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
+          } />
+        </Routes>
       </div>
     </MainLayout>
   );

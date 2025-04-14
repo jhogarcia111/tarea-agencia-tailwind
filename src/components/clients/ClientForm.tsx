@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,7 +18,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useData } from "@/context/DataContext";
+import { toast } from "sonner";
+import { useNavigate, useParams } from "react-router-dom";
 
 interface ClientFormProps {
   editMode?: boolean;
@@ -42,6 +44,10 @@ export function ClientForm({
   onCancel,
   initialData,
 }: ClientFormProps) {
+  const { addClient, updateClient, getClientById } = useData();
+  const navigate = useNavigate();
+  const { id } = useParams();
+  
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     contactName: initialData?.contactName || "",
@@ -52,6 +58,23 @@ export function ClientForm({
     notes: initialData?.notes || "",
   });
 
+  useEffect(() => {
+    if (editMode && id) {
+      const clientData = getClientById(Number(id));
+      if (clientData) {
+        setFormData({
+          name: clientData.name,
+          contactName: clientData.contact,
+          email: clientData.email,
+          phone: "",
+          industry: clientData.industry,
+          isActive: clientData.status === 'active',
+          notes: "",
+        });
+      }
+    }
+  }, [editMode, id, getClientById]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -61,8 +84,43 @@ export function ClientForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (editMode && id) {
+      const clientData = getClientById(Number(id));
+      if (clientData) {
+        updateClient({
+          ...clientData,
+          name: formData.name,
+          contact: formData.contactName,
+          email: formData.email,
+          industry: formData.industry,
+          status: formData.isActive ? 'active' : 'inactive',
+        });
+        toast.success("Cliente actualizado con éxito");
+      }
+    } else {
+      addClient({
+        name: formData.name,
+        contact: formData.contactName,
+        email: formData.email,
+        industry: formData.industry,
+        status: formData.isActive ? 'active' : 'inactive',
+      });
+      toast.success("Cliente creado con éxito");
+    }
+
     if (onSubmit) {
       onSubmit(formData);
+    } else {
+      navigate('/clients');
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate('/clients');
     }
   };
 
@@ -141,7 +199,7 @@ export function ClientForm({
           <div className="grid gap-2">
             <Label htmlFor="industry">Industria</Label>
             <Select
-              value={formData.industry}
+              value={formData.industry.toLowerCase()}
               onValueChange={(value) =>
                 setFormData((prev) => ({ ...prev, industry: value }))
               }
@@ -182,7 +240,7 @@ export function ClientForm({
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline" type="button" onClick={onCancel}>
+          <Button variant="outline" type="button" onClick={handleCancel}>
             Cancelar
           </Button>
           <Button className="bg-brand-500 hover:bg-brand-600" type="submit">
