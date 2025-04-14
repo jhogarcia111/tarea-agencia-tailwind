@@ -6,11 +6,18 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Plus } from "lucide-react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 export default function Tasks() {
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+  
+  const isNewTaskRoute = location.pathname === "/tasks/new";
+  const isEditTaskRoute = location.pathname.includes("/tasks/edit/");
+  const queryParams = new URLSearchParams(location.search);
+  const autoStatus = queryParams.get('setStatus');
 
   const openNewTaskForm = () => {
     navigate("/tasks/new");
@@ -38,39 +45,42 @@ export default function Tasks() {
           </Button>
         </div>
 
-        <Routes>
-          <Route path="/" element={<TaskTable />} />
-          <Route path="/new" element={
-            <Sheet open={true} onOpenChange={handleFormClose}>
-              <SheetContent className="sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Nueva Tarea</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                  <TaskForm
-                    editMode={false}
-                    onCancel={handleFormClose}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
-          } />
-          <Route path="/edit/:id" element={
-            <Sheet open={true} onOpenChange={handleFormClose}>
-              <SheetContent className="sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Editar Tarea</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                  <TaskForm
-                    editMode={true}
-                    onCancel={handleFormClose}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
-          } />
-        </Routes>
+        {/* Main content */}
+        {!isNewTaskRoute && !isEditTaskRoute && <TaskTable />}
+
+        {/* New task form */}
+        {isNewTaskRoute && (
+          <Sheet open={true} onOpenChange={handleFormClose}>
+            <SheetContent className="sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Nueva Tarea</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <TaskForm
+                  editMode={false}
+                  onCancel={handleFormClose}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
+
+        {/* Edit task form */}
+        {isEditTaskRoute && id && (
+          <Sheet open={true} onOpenChange={handleFormClose}>
+            <SheetContent className="sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Editar Tarea</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <TaskForm
+                  editMode={true}
+                  onCancel={handleFormClose}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
     </MainLayout>
   );

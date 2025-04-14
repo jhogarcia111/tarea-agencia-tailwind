@@ -6,11 +6,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Briefcase } from "lucide-react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 export default function Clients() {
   const [isClientFormOpen, setIsClientFormOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+  
+  const isNewClientRoute = location.pathname === "/clients/new";
+  const isEditClientRoute = location.pathname.includes("/clients/edit/");
 
   const openNewClientForm = () => {
     navigate("/clients/new");
@@ -38,39 +43,42 @@ export default function Clients() {
           </Button>
         </div>
 
-        <Routes>
-          <Route path="/" element={<ClientTable />} />
-          <Route path="/new" element={
-            <Sheet open={true} onOpenChange={handleFormClose}>
-              <SheetContent className="sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Nuevo Cliente</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                  <ClientForm
-                    editMode={false}
-                    onCancel={handleFormClose}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
-          } />
-          <Route path="/edit/:id" element={
-            <Sheet open={true} onOpenChange={handleFormClose}>
-              <SheetContent className="sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Editar Cliente</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                  <ClientForm
-                    editMode={true}
-                    onCancel={handleFormClose}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
-          } />
-        </Routes>
+        {/* Main content */}
+        {!isNewClientRoute && !isEditClientRoute && <ClientTable />}
+
+        {/* New client form */}
+        {isNewClientRoute && (
+          <Sheet open={true} onOpenChange={handleFormClose}>
+            <SheetContent className="sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Nuevo Cliente</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <ClientForm
+                  editMode={false}
+                  onCancel={handleFormClose}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
+
+        {/* Edit client form */}
+        {isEditClientRoute && id && (
+          <Sheet open={true} onOpenChange={handleFormClose}>
+            <SheetContent className="sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Editar Cliente</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <ClientForm
+                  editMode={true}
+                  onCancel={handleFormClose}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
     </MainLayout>
   );

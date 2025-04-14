@@ -6,11 +6,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { UserPlus } from "lucide-react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 export default function Users() {
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams();
+  
+  const isNewUserRoute = location.pathname === "/users/new";
+  const isEditUserRoute = location.pathname.includes("/users/edit/");
 
   const openNewUserForm = () => {
     navigate("/users/new");
@@ -38,39 +43,42 @@ export default function Users() {
           </Button>
         </div>
 
-        <Routes>
-          <Route path="/" element={<UserTable />} />
-          <Route path="/new" element={
-            <Sheet open={true} onOpenChange={handleFormClose}>
-              <SheetContent className="sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Nuevo Usuario</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                  <UserForm
-                    editMode={false}
-                    onCancel={handleFormClose}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
-          } />
-          <Route path="/edit/:id" element={
-            <Sheet open={true} onOpenChange={handleFormClose}>
-              <SheetContent className="sm:max-w-md overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Editar Usuario</SheetTitle>
-                </SheetHeader>
-                <div className="mt-6">
-                  <UserForm
-                    editMode={true}
-                    onCancel={handleFormClose}
-                  />
-                </div>
-              </SheetContent>
-            </Sheet>
-          } />
-        </Routes>
+        {/* Main content */}
+        {!isNewUserRoute && !isEditUserRoute && <UserTable />}
+
+        {/* New user form */}
+        {isNewUserRoute && (
+          <Sheet open={true} onOpenChange={handleFormClose}>
+            <SheetContent className="sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Nuevo Usuario</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <UserForm
+                  editMode={false}
+                  onCancel={handleFormClose}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
+
+        {/* Edit user form */}
+        {isEditUserRoute && id && (
+          <Sheet open={true} onOpenChange={handleFormClose}>
+            <SheetContent className="sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Editar Usuario</SheetTitle>
+              </SheetHeader>
+              <div className="mt-6">
+                <UserForm
+                  editMode={true}
+                  onCancel={handleFormClose}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
       </div>
     </MainLayout>
   );
