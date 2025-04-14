@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
@@ -16,14 +16,21 @@ export default function Login() {
   const { login } = useData();
   const navigate = useNavigate();
 
+  // Console log to debug
+  useEffect(() => {
+    console.log("Login component mounted");
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     
     if (!email || !password) {
       setError('Por favor ingrese email y contraseña');
       return;
     }
     
+    console.log(`Intentando iniciar sesión con: ${email}`);
     const result = login(email, password);
     
     if (result.success) {
