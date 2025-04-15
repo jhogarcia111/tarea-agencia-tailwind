@@ -6,16 +6,45 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Briefcase } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useData } from "@/context/DataContext";
 import { TaskByClientChart } from "@/components/dashboard/TaskByClientChart";
 import { TaskByUserChart } from "@/components/dashboard/TaskByUserChart";
+import { ClientDistributionChart } from "@/components/dashboard/ClientDistributionChart";
 
+// Agregar las propiedades faltantes al tipo Client
 export interface Client {
+  industry: string;
   id: number;
   name: string;
   email: string;
-  contactName?: string; // Added contactName property
-  // other properties
+  contactName: string; // Propiedad obligatoria
+  phone?: string; // Propiedad opcional
+  isActive?: boolean; // Propiedad opcional
+  notes?: string; // Propiedad opcional
+  // otras propiedades
+}
+
+export function useData() {
+  const getClientById = (id: number): Client | undefined => {
+    // Mock implementation for demonstration purposes
+    const clients: Client[] = [
+      {
+        id: 1,
+        name: "Client A",
+        email: "clienta@example.com",
+        contactName: "John Doe",
+        industry: "Technology",
+      },
+      {
+        id: 2,
+        name: "Client B",
+        email: "clientb@example.com",
+        contactName: "Jane Smith",
+        industry: "Finance",
+      },
+    ];
+    return clients.find(client => client.id === id);
+  };
+  return { getClientById };
 }
 
 export default function Clients() {
@@ -54,9 +83,10 @@ export default function Clients() {
           </Button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <TaskByClientChart />
+        <div className="grid gap-6 md:grid-cols-3">
+          <ClientDistributionChart />
           <TaskByUserChart />
+          <TaskByClientChart />
         </div>
 
         {/* Main content */}
@@ -102,6 +132,7 @@ export default function Clients() {
                           phone: getClientById(Number(id))?.phone || "",
                           isActive: getClientById(Number(id))?.isActive || false,
                           notes: getClientById(Number(id))?.notes || "",
+                          industry: getClientById(Number(id))?.industry || "",
                         }
                       : undefined
                   }

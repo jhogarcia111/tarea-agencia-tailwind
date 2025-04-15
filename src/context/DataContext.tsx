@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
+import { getTasks as fetchTasks } from '../models/TaskModel';
+import connection from '@/database/connection';
 
 // Define types for our data
 export interface User {
@@ -62,7 +64,7 @@ export interface AuthState {
 interface DataContextType {
   // Auth state
   auth: AuthState;
-  login: (email: string, password: string) => { success: boolean; message: string };
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   
   // Original data management
@@ -106,211 +108,44 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 // Initial mock data
-const initialUsers: User[] = [
-  {
-    id: 1,
-    name: "María López",
-    email: "admin@agencia.com",
-    password: "admin123", // Added password
-    role: "admin",
-    status: "active",
-    avatar: "ML",
-  },
-  {
-    id: 2,
-    name: "Carlos Rodríguez",
-    email: "carlos@agencia.com",
-    password: "carlos123", // Added password
-    role: "designer",
-    status: "active",
-    avatar: "CR",
-  },
-  {
-    id: 3,
-    name: "Ana Martínez",
-    email: "ana@agencia.com",
-    password: "ana123", // Added password
-    role: "marketing",
-    status: "active",
-    avatar: "AM",
-  },
-  {
-    id: 4,
-    name: "Juan Pérez",
-    email: "juan@agencia.com",
-    password: "juan123", // Added password
-    role: "copywriter",
-    status: "inactive",
-    avatar: "JP",
-  },
-  {
-    id: 5,
-    name: "Laura Sánchez",
-    email: "laura@agencia.com",
-    password: "laura123", // Added password
-    role: "manager",
-    status: "active",
-    avatar: "LS",
-  },
-];
-
-const initialClients: Client[] = [
-  {
-    id: 1,
-    name: "Acme Inc.",
-    contact: "John Smith",
-    email: "john@acme.com",
-    status: "active",
-    taskCount: 15,
-    industry: "Retail",
-  },
-  {
-    id: 2,
-    name: "TechCorp",
-    contact: "Emma Johnson",
-    email: "emma@techcorp.com",
-    status: "active",
-    taskCount: 8,
-    industry: "Technology",
-  },
-  {
-    id: 3,
-    name: "Globex",
-    contact: "Michael Brown",
-    email: "michael@globex.com",
-    status: "active",
-    taskCount: 12,
-    industry: "Finance",
-  },
-  {
-    id: 4,
-    name: "Smith & Co",
-    contact: "Sarah Williams",
-    email: "sarah@smithco.com",
-    status: "inactive",
-    taskCount: 5,
-    industry: "Healthcare",
-  },
-  {
-    id: 5,
-    name: "Initech",
-    contact: "David Miller",
-    email: "david@initech.com",
-    status: "active",
-    taskCount: 9,
-    industry: "Manufacturing",
-  },
-];
-
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    title: "Diseñar banner para campaña de Facebook",
-    client: "Acme Inc.",
-    assignee: "María López",
-    status: "completed",
-    dueDate: "2025-04-10",
-    priority: "high",
-    createdDate: "2025-04-01",
-  },
-  {
-    id: 2,
-    title: "Crear copy para publicación de Instagram",
-    client: "TechCorp",
-    assignee: "Carlos Rodríguez",
-    status: "in-progress",
-    dueDate: "2025-04-15",
-    priority: "medium",
-    createdDate: "2025-04-02",
-  },
-  {
-    id: 3,
-    title: "Análisis de rendimiento de campaña",
-    client: "Globex",
-    assignee: "Ana Martínez",
-    status: "pending",
-    dueDate: "2025-04-20",
-    priority: "medium",
-    createdDate: "2025-04-03",
-  },
-  {
-    id: 4,
-    title: "Optimizar palabras clave para SEO",
-    client: "Smith & Co",
-    assignee: "Juan Pérez",
-    status: "in-progress",
-    dueDate: "2025-04-16",
-    priority: "high",
-    createdDate: "2025-04-04",
-  },
-  {
-    id: 5,
-    title: "Revisión de contenido del blog",
-    client: "Acme Inc.",
-    assignee: "María López",
-    status: "pending",
-    dueDate: "2025-04-25",
-    priority: "low",
-    createdDate: "2025-04-05",
-  },
-  {
-    id: 6,
-    title: "Actualizar página de contacto",
-    client: "TechCorp",
-    assignee: "Carlos Rodríguez",
-    status: "pending",
-    dueDate: "2025-04-30",
-    priority: "low",
-    createdDate: "2025-04-06",
-  },
-  {
-    id: 7,
-    title: "Preparar informe mensual",
-    client: "Globex",
-    assignee: "Ana Martínez",
-    status: "in-progress",
-    dueDate: "2025-04-28",
-    priority: "high",
-    createdDate: "2025-04-07",
-  },
-  {
-    id: 8,
-    title: "Diseño de newsletter",
-    client: "Initech",
-    assignee: "Laura Sánchez",
-    status: "completed",
-    dueDate: "2025-04-05",
-    priority: "medium",
-    createdDate: "2025-04-08",
-  },
-];
-
 const initialErrorLogs: ErrorLog[] = [];
-
 const initialActivityLogs: ActivityLog[] = [];
+
+export const getClients = async (): Promise<Client[]> => {
+  // Ensure this function returns a Promise<Client[]>
+  return [
+    // Example mock data
+    { id: 1, name: "Client A", contact: "123456789", email: "clienta@example.com", status: "active", taskCount: 0, industry: "Tech" },
+    { id: 2, name: "Client B", contact: "987654321", email: "clientb@example.com", status: "inactive", taskCount: 2, industry: "Finance" }
+  ];
+};
+
+export const getUsers = async (): Promise<User[]> => {
+  // Ensure this function returns a Promise<User[]>
+  return [
+    // Example mock data
+    { id: 1, name: "John Doe", email: "john@example.com", password: "123456", role: "admin", status: "active", avatar: "JD" },
+    { id: 2, name: "Jane Smith", email: "jane@example.com", password: "password", role: "user", status: "inactive", avatar: "JS" }
+  ];
+};
+
+const fetchLocalTasks = async (): Promise<Task[]> => {
+  // Example mock data
+  return [
+    { id: 1, title: "Task 1", client: "Client A", assignee: "John Doe", status: "pending", dueDate: "2023-12-01", priority: "high", createdDate: "2023-11-01" },
+    { id: 2, title: "Task 2", client: "Client B", assignee: "Jane Smith", status: "in-progress", dueDate: "2023-12-05", priority: "medium", createdDate: "2023-11-02" }
+  ];
+};
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Load data from localStorage if available
-  const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = localStorage.getItem('users');
-    return savedUsers ? JSON.parse(savedUsers) : initialUsers;
-  });
-  
-  const [clients, setClients] = useState<Client[]>(() => {
-    const savedClients = localStorage.getItem('clients');
-    return savedClients ? JSON.parse(savedClients) : initialClients;
-  });
-  
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    return savedTasks ? JSON.parse(savedTasks) : initialTasks;
-  });
-  
+  const [users, setUsers] = useState<User[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>(() => {
     const savedErrorLogs = localStorage.getItem('errorLogs');
     return savedErrorLogs ? JSON.parse(savedErrorLogs) : initialErrorLogs;
   });
-  
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
     const savedActivityLogs = localStorage.getItem('activityLogs');
     return savedActivityLogs ? JSON.parse(savedActivityLogs) : initialActivityLogs;
@@ -322,19 +157,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return savedAuth ? JSON.parse(savedAuth) : { isLoggedIn: false, currentUser: null };
   });
 
+  // Fetch initial data
+  useEffect(() => {
+    const fetchData = async () => {
+      const fetchedUsers = await getUsers();
+      const fetchedClients = await getClients();
+      const fetchedTasks = await fetchLocalTasks();
+      setUsers(fetchedUsers);
+      setClients(fetchedClients);
+      setTasks(fetchedTasks);
+    };
+    fetchData();
+  }, []);
+
   // Save to localStorage whenever data changes
-  useEffect(() => {
-    localStorage.setItem('users', JSON.stringify(users));
-  }, [users]);
-
-  useEffect(() => {
-    localStorage.setItem('clients', JSON.stringify(clients));
-  }, [clients]);
-
-  useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
-  
   useEffect(() => {
     localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
   }, [errorLogs]);
@@ -348,49 +184,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [auth]);
   
   // Login function
-  const login = (email: string, password: string) => {
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      // Only allow active users to login
-      if (user.status === "inactive") {
-        logError({
-          location: "Login Page",
-          form: "Login Form",
-          message: "Intento de acceso con cuenta inactiva: " + email
-        });
-        return { 
-          success: false, 
-          message: "Esta cuenta está inactiva. Por favor, contacte al administrador."
-        };
-      }
-      
-      const updatedAuth = { isLoggedIn: true, currentUser: user };
-      setAuth(updatedAuth);
-      
-      // Log activity
-      logActivity(user.id, user.name, "Inicio de sesión", "Login");
-      
-      return { success: true, message: "Inicio de sesión exitoso" };
-    } else {
-      // Check if user exists but password is wrong
-      const userExists = users.find(u => u.email === email);
-      
-      if (userExists) {
-        logError({
-          location: "Login Page",
-          form: "Login Form",
-          message: "Contraseña incorrecta para el usuario: " + email
-        });
-        return { success: false, message: "Contraseña incorrecta" };
+  const login = async (email: string, password: string) => {
+    try {
+      const [rows] = await connection.query(
+        'SELECT id, name, email, status FROM Users WHERE email = ? AND password = ?',
+        [email, password]
+      ) as any[];
+
+      if (rows.length > 0) {
+        const user = rows[0];
+
+        if (user.status === 'inactive') {
+          logError({
+            location: 'Login Page',
+            form: 'Login Form',
+            message: `Intento de acceso con cuenta inactiva: ${email}`,
+          });
+          return {
+            success: false,
+            message: 'Esta cuenta está inactiva. Por favor, contacte al administrador.',
+          };
+        }
+
+        const updatedAuth = { isLoggedIn: true, currentUser: user };
+        setAuth(updatedAuth);
+
+        logActivity(user.id, user.name, 'Inicio de sesión', 'Login');
+
+        return { success: true, message: 'Inicio de sesión exitoso' };
       } else {
         logError({
-          location: "Login Page",
-          form: "Login Form",
-          message: "Intento de acceso con usuario no registrado: " + email
+          location: 'Login Page',
+          form: 'Login Form',
+          message: `Intento de acceso fallido para el usuario: ${email}`,
         });
-        return { success: false, message: "Usuario no registrado. Por favor, contacte al administrador." };
+        return { success: false, message: 'Usuario o contraseña incorrectos.' };
       }
+    } catch (error) {
+      console.error('Error al intentar iniciar sesión:', error);
+      logError({
+        location: 'Login Page',
+        form: 'Login Form',
+        message: 'Error interno del servidor durante el inicio de sesión.',
+      });
+      return { success: false, message: 'Error interno del servidor. Por favor, intente más tarde.' };
     }
   };
   

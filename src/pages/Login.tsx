@@ -20,23 +20,27 @@ export default function Login() {
     console.log("Login component mounted");
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (!email || !password) {
       setError('Por favor ingrese email y contraseña');
       return;
     }
-    
+
     console.log(`Intentando iniciar sesión con: ${email}`);
-    const result = login(email, password);
-    
-    if (result.success) {
-      toast.success('Inicio de sesión exitoso');
-      navigate('/dashboard');
-    } else {
-      setError(result.message);
+    try {
+      const result = await login(email, password);
+
+      if (result.success) {
+        toast.success('Inicio de sesión exitoso');
+        navigate('/dashboard');
+      } else {
+        setError(result.message);
+      }
+    } catch (error) {
+      setError('Ocurrió un error inesperado. Por favor, intente nuevamente.');
     }
   };
 

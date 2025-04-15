@@ -14,14 +14,14 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 
 export interface Task {
-  id: string;
-  name: string;
+  id: number; // Align with DataContext
+  title: string;
   status: string;
   dueDate: string;
 }
 
 interface TaskTableProps {
-  tasks: Task[];
+  tasks: Task[]; // Ensure tasks prop is properly typed
 }
 
 export function TaskTable({ tasks }: TaskTableProps) {
@@ -29,7 +29,7 @@ export function TaskTable({ tasks }: TaskTableProps) {
     <table className="min-w-full border-collapse border border-gray-200">
       <thead>
         <tr>
-          <th className="border border-gray-300 px-4 py-2">Task Name</th>
+          <th className="border border-gray-300 px-4 py-2">Task Title</th>
           <th className="border border-gray-300 px-4 py-2">Status</th>
           <th className="border border-gray-300 px-4 py-2">Due Date</th>
         </tr>
@@ -37,7 +37,7 @@ export function TaskTable({ tasks }: TaskTableProps) {
       <tbody>
         {tasks.map((task) => (
           <tr key={task.id}>
-            <td className="border border-gray-300 px-4 py-2">{task.name}</td>
+            <td className="border border-gray-300 px-4 py-2">{task.title}</td>
             <td className="border border-gray-300 px-4 py-2">{task.status}</td>
             <td className="border border-gray-300 px-4 py-2">{new Date(task.dueDate).toLocaleDateString()}</td>
           </tr>
