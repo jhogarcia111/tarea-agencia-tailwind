@@ -19,9 +19,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
-import { useData } from "@/context/DataContext";
 import { toast } from "sonner";
 import { useNavigate, useParams } from "react-router-dom";
+import { createClient, updateClient as updateClientService, fetchClients } from "@/lib/clientService";
 
 interface ClientFormProps {
   editMode?: boolean;
@@ -44,10 +44,9 @@ export function ClientForm({
   onCancel,
   initialData,
 }: ClientFormProps) {
-  const { addClient, updateClient, getClientById } = useData();
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     contactName: initialData?.contactName || "",
@@ -60,20 +59,29 @@ export function ClientForm({
 
   useEffect(() => {
     if (editMode && id) {
-      const clientData = getClientById(Number(id));
-      if (clientData) {
-        setFormData({
-          name: clientData.name,
-          contactName: clientData.contact,
-          email: clientData.email,
-          phone: "",
-          industry: clientData.industry,
-          isActive: clientData.status === 'active',
-          notes: "",
-        });
-      }
+      const loadClient = async () => {
+        try {
+          const clients = await fetchClients();
+          const clientData = clients.find((client) => client.id === Number(id));
+          if (clientData) {
+            setFormData({
+              name: clientData.name,
+              contactName: clientData.contact,
+              email: clientData.email,
+              phone: clientData.phone || "",
+              industry: clientData.industry,
+              isActive: clientData.status === "active",
+              notes: clientData.notes || "",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching client data:", error);
+        }
+      };
+
+      loadClient();
     }
-  }, [editMode, id, getClientById]);
+  }, [editMode, id]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -82,37 +90,38 @@ export function ClientForm({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editMode && id) {
-      const clientData = getClientById(Number(id));
-      if (clientData) {
-        updateClient({
-          ...clientData,
+    try {
+      if (editMode && id) {
+        await updateClientService(Number(id), {
           name: formData.name,
           contact: formData.contactName,
           email: formData.email,
           industry: formData.industry,
-          status: formData.isActive ? 'active' : 'inactive',
+          status: formData.isActive ? "active" : "inactive",
         });
         toast.success("Cliente actualizado con éxito");
+      } else {
+        await createClient({
+          name: formData.name,
+          contact: formData.contactName,
+          email: formData.email,
+          industry: formData.industry,
+          status: formData.isActive ? "active" : "inactive",
+        });
+        toast.success("Cliente creado con éxito");
       }
-    } else {
-      addClient({
-        name: formData.name,
-        contact: formData.contactName,
-        email: formData.email,
-        industry: formData.industry,
-        status: formData.isActive ? 'active' : 'inactive',
-      });
-      toast.success("Cliente creado con éxito");
-    }
 
-    if (onSubmit) {
-      onSubmit(formData);
-    } else {
-      navigate('/clients');
+      if (onSubmit) {
+        onSubmit(formData);
+      } else {
+        navigate("/clients");
+      }
+    } catch (error) {
+      console.error("Error submitting client data:", error);
+      toast.error("Error al guardar el cliente");
     }
   };
 
@@ -120,7 +129,7 @@ export function ClientForm({
     if (onCancel) {
       onCancel();
     } else {
-      navigate('/clients');
+      navigate("/clients");
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,7 +17,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { BadgeCheck, Briefcase, Edit, MoreHorizontal, Search, Trash2, X } from "lucide-react";
 import { Badge } from "../ui/badge";
-import { useData } from "@/context/DataContext";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -29,12 +28,26 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { fetchClients, deleteClient as deleteClientService } from "@/lib/clientService";
 
 export function ClientTable() {
-  const { clients, deleteClient } = useData();
+  const [clients, setClients] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<number | null>(null);
+
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const data = await fetchClients();
+        setClients(data);
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      }
+    };
+
+    loadClients();
+  }, []);
 
   const filteredClients = clients.filter(
     (client) =>
@@ -49,12 +62,19 @@ export function ClientTable() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (clientToDelete !== null) {
-      deleteClient(clientToDelete);
-      toast.success("Cliente eliminado con éxito");
-      setDeleteDialogOpen(false);
-      setClientToDelete(null);
+      try {
+        await deleteClientService(clientToDelete);
+        setClients((prevClients) => prevClients.filter((client) => client.id !== clientToDelete));
+        toast.success("Cliente eliminado con éxito");
+      } catch (error) {
+        console.error("Error deleting client:", error);
+        toast.error("Error al eliminar el cliente");
+      } finally {
+        setDeleteDialogOpen(false);
+        setClientToDelete(null);
+      }
     }
   };
 

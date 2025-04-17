@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
-import { getTasks as fetchTasks } from '../models/TaskModel';
-import connection from '@/database/connection';
+
 
 // Define types for our data
 export interface User {
