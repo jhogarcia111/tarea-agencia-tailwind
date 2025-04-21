@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useData } from '@/context/DataContext';
@@ -13,8 +12,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+export type ActivityLog = {
+  id: string;
+  date: string;
+  userName: string;
+  action: string;
+  location: string;
+};
+
+export type DataContextType = {
+  activityLogs: ActivityLog[];
+  auth: AuthType;
+  changeLogs: ChangeLog[]; // Add this line
+  // other properties
+};
+
 export default function ActivityLogs() {
-  const { activityLogs, auth } = useData();
+  const { activityLogs, auth, changeLogs } = useData();
   
   // Sort by date descending (newest first)
   const sortedActivities = [...activityLogs].sort((a, b) => 
@@ -67,6 +81,34 @@ export default function ActivityLogs() {
               )}
             </TableBody>
           </Table>
+        </div>
+
+        <div className="space-y-6 mt-8">
+          <h1 className="text-3xl font-bold">Historial de Cambios</h1>
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Entidad</TableHead>
+                  <TableHead>Acción</TableHead>
+                  <TableHead>Usuario</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Detalles</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {changeLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell>{log.entity}</TableCell>
+                    <TableCell>{log.action}</TableCell>
+                    <TableCell>{log.userName}</TableCell>
+                    <TableCell>{new Date(log.timestamp).toLocaleString()}</TableCell>
+                    <TableCell>{log.details}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     </MainLayout>

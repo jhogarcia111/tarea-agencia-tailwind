@@ -1,10 +1,10 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useData } from "./context/DataContext";
+import { useData, NotificationProvider } from "./context/DataContext";
+import NotificationList from "@/components/ui/NotificationList";
 
 // Pages
 import Login from "./pages/Login";
@@ -33,67 +33,70 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={
-              auth.isLoggedIn ? <Navigate to="/dashboard" replace /> : <Login />
-            } />
-            
-            {/* Protected routes */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/users/*" element={
-              <ProtectedRoute>
-                <Users />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/clients/*" element={
-              <ProtectedRoute>
-                <Clients />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/tasks/*" element={
-              <ProtectedRoute>
-                <Tasks />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/error-logs" element={
-              <ProtectedRoute requiredRole="admin">
-                <ErrorLogs />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="/activity-logs" element={
-              <ProtectedRoute>
-                <ActivityLogs />
-              </ProtectedRoute>
-            } />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-          <Sonner />
-        </BrowserRouter>
+        <NotificationProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/login" element={
+                auth.isLoggedIn ? <Navigate to="/dashboard" replace /> : <Login />
+              } />
+              
+              {/* Protected routes */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/users/*" element={
+                <ProtectedRoute>
+                  <Users />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/clients/*" element={
+                <ProtectedRoute>
+                  <Clients />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/tasks/*" element={
+                <ProtectedRoute>
+                  <Tasks />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/error-logs" element={
+                <ProtectedRoute requiredRole="admin">
+                  <ErrorLogs />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/activity-logs" element={
+                <ProtectedRoute>
+                  <ActivityLogs />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <NotificationList />
+            <Toaster />
+            <Sonner />
+          </BrowserRouter>
+        </NotificationProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

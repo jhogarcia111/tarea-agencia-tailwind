@@ -1,7 +1,36 @@
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
+import pool from './connection.js';
+import io from 'socket.io-client';
 
+const socket = io('http://localhost:3000');
+
+export const NotificationContext = createContext({ notifications: [] });
+
+export const NotificationProvider = ({ children }) => {
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    socket.on('notification', (data) => {
+      setNotifications((prev) => [...prev, data]);
+    });
+
+    socket.on('taskNotification', (data) => {
+      setNotifications((prev) => [...prev, data]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  return (
+    <NotificationContext.Provider value={{ notifications }}>
+      {children}
+    </NotificationContext.Provider>
+  );
+};
 
 // Define types for our data
 export interface User {
@@ -53,6 +82,17 @@ export interface ActivityLog {
   action: string;
   location: string;
   date: string;
+}
+
+export interface ChangeLog {
+  id: number;
+  entity: string;
+  entityId: number;
+  action: string;
+  userId: number;
+  userName: string;
+  details: string;
+  timestamp: string;
 }
 
 export interface AuthState {
@@ -149,6 +189,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedActivityLogs = localStorage.getItem('activityLogs');
     return savedActivityLogs ? JSON.parse(savedActivityLogs) : initialActivityLogs;
   });
+  const [changeLogs, setChangeLogs] = useState<ChangeLog[]>([]);
   
   // Auth state
   const [auth, setAuth] = useState<AuthState>(() => {
@@ -185,11 +226,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Login function
   const login = async (email: string, password: string) => {
     try {
-      const [rows] = await connection.query(
+      const [rows] = await pool.query(
         'SELECT id, name, email, status FROM Users WHERE email = ? AND password = ?',
         [email, password]
       ) as any[];
-
       if (rows.length > 0) {
         const user = rows[0];
 
@@ -262,8 +302,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     setActivityLogs([...activityLogs, newActivity]);
   };
+
+  // Log change
+  const logChange = (log: Omit<ChangeLog, 'id' | 'timestamp'>) => {
+    const newLog: ChangeLog = {
+      ...log,
+      id: changeLogs.length > 0 ? Math.max(...changeLogs.map(l => l.id)) + 1 : 1,
+      timestamp: new Date().toISOString(),
+    };
+    setChangeLogs([...changeLogs, newLog]);
+  };
   
-  // Wrap CRUD operations to log activities
+  // Wrap CRUD operations to log activities and changes
   const addUser = (user: Omit<User, 'id' | 'avatar'>) => {
     const newUser: User = {
       ...user,
@@ -301,24 +351,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       taskCount: 0,
     };
     setClients([...clients, newClient]);
-    
+
     if (auth.currentUser) {
       logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nuevo cliente: " + newClient.name, "Clientes");
+      logChange({
+        entity: 'client',
+        entityId: newClient.id,
+        action: 'create',
+        userId: auth.currentUser.id,
+        userName: auth.currentUser.name,
+        details: `Client ${newClient.name} created.`
+      });
     }
   };
 
   const updateClient = (updatedClient: Client) => {
     setClients(clients.map(client => client.id === updatedClient.id ? updatedClient : client));
-    
+
     if (auth.currentUser) {
       logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó cliente: " + updatedClient.name, "Clientes");
+      logChange({
+        entity: 'client',
+        entityId: updatedClient.id,
+        action: 'update',
+        userId: auth.currentUser.id,
+        userName: auth.currentUser.name,
+        details: `Client ${updatedClient.name} updated.`
+      });
     }
   };
 
   const deleteClient = (id: number) => {
     const clientToDelete = clients.find(c => c.id === id);
     setClients(clients.filter(client => client.id !== id));
-    
+
     // Also delete all tasks associated with this client
     if (clientToDelete) {
       const clientTasks = tasks.filter(task => task.client === clientToDelete.name);
@@ -331,6 +397,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           `Eliminó cliente: ${clientToDelete.name} y ${clientTasks.length} tareas asociadas`, 
           "Clientes"
         );
+        logChange({
+          entity: 'client',
+          entityId: clientToDelete.id,
+          action: 'delete',
+          userId: auth.currentUser.id,
+          userName: auth.currentUser.name,
+          details: `Client ${clientToDelete.name} deleted.`
+        });
       }
     }
   };

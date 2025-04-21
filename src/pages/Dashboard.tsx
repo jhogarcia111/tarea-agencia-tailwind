@@ -1,17 +1,16 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
-import { TaskDistributionChart } from "@/components/dashboard/TaskDistributionChart";
-import { RecentTasks } from "@/components/dashboard/RecentTasks";
-import { ClientDistributionChart } from "@/components/dashboard/ClientDistributionChart";
-import { PlatformUsageChart } from "@/components/dashboard/PlatformUsageChart";
-import { UserTaskCharts } from "@/components/dashboard/UserTaskCharts";
-import { UserComparisonChart } from "@/components/dashboard/PlatformUsageChart";
 import { TaskDeadlineCalendar } from "@/components/ui/calendar";
 import { TaskStateChart } from "@/components/ui/TaskStateChart";
 import { useData } from "@/context/DataContext";
+import { useDashboard } from "@/context/DashboardContext";
 import { Users, Briefcase, CheckSquare, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { RecentTasks } from "@/components/dashboard/RecentTasks";
+import { TaskDistributionChart } from "@/components/dashboard/TaskDistributionChart";
+import { ClientDistributionChart } from "@/components/dashboard/ClientDistributionChart";
+import { PlatformUsageChart } from "@/components/dashboard/PlatformUsageChart";
 
 export interface Task {
   id: number; // Align with DataContext
@@ -49,6 +48,7 @@ export function TaskTable({ tasks }: TaskTableProps) {
 
 export default function Dashboard() {
   const { auth, users, clients, tasks, activityLogs } = useData();
+  const { widgets } = useDashboard();
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
@@ -136,8 +136,8 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <TaskDistributionChart />
-          <ClientDistributionChart />
+          {widgets.taskDistribution && <TaskDistributionChart />}
+          {widgets.clientDistribution && <ClientDistributionChart />}
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -152,14 +152,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        <UserTaskCharts />
+        {widgets.recentTasks && <RecentTasks />}
 
         <div className="grid gap-6 md:grid-cols-2">
-          <PlatformUsageChart />
-          <UserComparisonChart />
+          {widgets.platformUsage && <PlatformUsageChart />}
         </div>
-
-        <RecentTasks />
       </div>
     </MainLayout>
   );
