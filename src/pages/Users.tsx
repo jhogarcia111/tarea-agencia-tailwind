@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { UserPlus } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { getUsers, createUser, updateUser, deleteUser } from '@/services/userService';
 
 export default function Users() {
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
@@ -36,6 +37,46 @@ export default function Users() {
       role: "User", // Default role
       isActive: true // Default active status
     };
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const users = await getUsers();
+      console.log('Fetched users:', users);
+      // Update state with fetched users if needed
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const handleCreateUser = async (userData) => {
+    try {
+      const newUser = await createUser(userData);
+      console.log('User created:', newUser);
+      // Update state with the new user if needed
+    } catch (error) {
+      console.error('Error creating user:', error);
+    }
+  };
+
+  const handleUpdateUser = async (id, userData) => {
+    try {
+      const updatedUser = await updateUser(id, userData);
+      console.log('User updated:', updatedUser);
+      // Update state with the updated user if needed
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
+  };
+
+  const handleDeleteUser = async (id) => {
+    try {
+      await deleteUser(id);
+      console.log('User deleted:', id);
+      // Update state to remove the deleted user if needed
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
   };
 
   return (

@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
+import apiClient from '@/context/connection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { AlertCircle } from 'lucide-react';
+import { testDatabaseConnection } from '@/services/databaseService';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login, sendPasswordRecoveryEmail } = useData();
+  const { sendPasswordRecoveryEmail, login } = useData();
   const navigate = useNavigate();
 
   // Console log to debug
@@ -40,6 +42,7 @@ export default function Login() {
         setError(result.message);
       }
     } catch (error) {
+      console.error('Error al intentar iniciar sesión:', error);
       setError('Ocurrió un error inesperado. Por favor, intente nuevamente.');
     }
   };
@@ -104,15 +107,15 @@ export default function Login() {
           </form>
         </CardContent>
         <CardFooter>
-          <Button 
-            onClick={handleSubmit} 
+          <Button
+            onClick={handleSubmit}
             className="w-full bg-brand-500 hover:bg-brand-600"
           >
             Iniciar Sesión
           </Button>
-          <Button 
-            variant="link" 
-            onClick={handleForgotPassword} 
+          <Button
+            variant="link"
+            onClick={handleForgotPassword}
             className="w-full text-sm text-brand-500 mt-2"
           >
             Olvidé mi contraseña

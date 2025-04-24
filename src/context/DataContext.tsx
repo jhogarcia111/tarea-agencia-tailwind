@@ -1,10 +1,7 @@
 import * as React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
-import pool from './connection.js';
-import io from 'socket.io-client';
-
-const socket = io('http://localhost:3000');
+import apiClient from './connection.js';
 
 export const NotificationContext = createContext({ notifications: [] });
 
@@ -12,17 +9,16 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
-    socket.on('notification', (data) => {
-      setNotifications((prev) => [...prev, data]);
-    });
-
-    socket.on('taskNotification', (data) => {
-      setNotifications((prev) => [...prev, data]);
-    });
-
-    return () => {
-      socket.disconnect();
+    const fetchNotifications = async () => {
+      try {
+        const response = await apiClient.get('/notifications');
+        setNotifications(response.data);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
     };
+
+    fetchNotifications();
   }, []);
 
   return (
@@ -226,39 +222,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Login function
   const login = async (email: string, password: string) => {
     try {
-      const [rows] = await pool.query(
-        'SELECT id, name, email, status FROM Users WHERE email = ? AND password = ?',
-        [email, password]
-      ) as any[];
-      if (rows.length > 0) {
-        const user = rows[0];
+      const response = await apiClient.post('/api/auth/login', { email, password });
+      const user = response.data;
 
-        if (user.status === 'inactive') {
-          logError({
-            location: 'Login Page',
-            form: 'Login Form',
-            message: `Intento de acceso con cuenta inactiva: ${email}`,
-          });
-          return {
-            success: false,
-            message: 'Esta cuenta está inactiva. Por favor, contacte al administrador.',
-          };
-        }
-
-        const updatedAuth = { isLoggedIn: true, currentUser: user };
-        setAuth(updatedAuth);
-
-        logActivity(user.id, user.name, 'Inicio de sesión', 'Login');
-
-        return { success: true, message: 'Inicio de sesión exitoso' };
-      } else {
+      if (user.status === 'inactive') {
         logError({
           location: 'Login Page',
           form: 'Login Form',
-          message: `Intento de acceso fallido para el usuario: ${email}`,
+          message: `Intento de acceso con cuenta inactiva: ${email}`,
         });
-        return { success: false, message: 'Usuario o contraseña incorrectos.' };
+        return {
+          success: false,
+          message: 'Esta cuenta está inactiva. Por favor, contacte al administrador.',
+        };
       }
+
+      const updatedAuth = { isLoggedIn: true, currentUser: user };
+      setAuth(updatedAuth);
+
+      logActivity(user.id, user.name, 'Inicio de sesión', 'Login');
+
+      return { success: true, message: 'Inicio de sesión exitoso' };
     } catch (error) {
       console.error('Error al intentar iniciar sesión:', error);
       logError({

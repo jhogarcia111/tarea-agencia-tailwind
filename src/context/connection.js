@@ -1,10 +1,10 @@
-import mysql from 'mysql2/promise';
+import axios from 'axios';
 
-const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: 'password',
-  database: 'agency_db',
+const apiClient = axios.create({
+  baseURL: 'http://localhost:3001', // Cambia esta URL por la de tu API REST
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-export default pool;
+export default apiClient;
