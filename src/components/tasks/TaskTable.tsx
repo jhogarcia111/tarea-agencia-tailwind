@@ -38,9 +38,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Task } from "@/context/DataContext";
 
-export function TaskTable() {
-  const { tasks, deleteTask } = useData();
+interface TaskTableProps {
+  tasks?: Task[];
+}
+
+export function TaskTable({ tasks: propTasks }: TaskTableProps = {}) {
+  const { tasks: contextTasks, deleteTask } = useData();
+  const tasks = propTasks || contextTasks;
   const [filterText, setFilterText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

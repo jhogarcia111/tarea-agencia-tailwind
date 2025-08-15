@@ -111,6 +111,9 @@ interface DataContextType {
   errorLogs: ErrorLog[];
   activityLogs: ActivityLog[];
   
+  // Change logs
+  changeLogs: ChangeLog[];
+  
   // Add error log
   logError: (error: Omit<ErrorLog, 'id' | 'date' | 'userId' | 'userRole'>) => void;
   
@@ -121,7 +124,7 @@ interface DataContextType {
   addClient: (client: Omit<Client, 'id' | 'taskCount'>) => void;
   updateClient: (client: Client) => void;
   deleteClient: (id: number) => void;
-  addTask: (task: Omit<Task, 'id'>) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdDate'>) => void;
   updateTask: (task: Task) => void;
   deleteTask: (id: number) => void;
   
@@ -132,12 +135,12 @@ interface DataContextType {
   getTasksByClient: (clientName: string) => Task[];
   getTasksByAssignee: (userName: string) => Task[];
   
-  // Activity tracking
-  getDailyActivityCount: () => { date: string; count: number }[];
-  getUserActivityCounts: () => { user: string; count: number }[];
+    // Activity tracking
+    getDailyActivityCount: () => { date: string; count: number }[];
+    getUserActivityCounts: () => { user: string; count: number }[];
 
-  // Password recovery
-  sendPasswordRecoveryEmail: (email: string) => { success: boolean; message: string };
+    // Password recovery
+    sendPasswordRecoveryEmail: (email: string) => { success: boolean; message: string };
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -219,11 +222,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('auth', JSON.stringify(auth));
   }, [auth]);
   
-  // Login function
+  // Login function - usando datos mock locales
   const login = async (email: string, password: string) => {
     try {
-      const response = await apiClient.post('/api/auth/login', { email, password });
-      const user = response.data;
+      // Buscar usuario en los datos locales
+      const user = users.find(u => u.email === email && u.password === password);
+      
+      if (!user) {
+        logError({
+          location: 'Login Page',
+          form: 'Login Form',
+          message: `Intento de acceso con credenciales incorrectas: ${email}`,
+        });
+        return {
+          success: false,
+          message: 'Usuario no registrado. Por favor, contacte al administrador.',
+        };
+      }
 
       if (user.status === 'inactive') {
         logError({
@@ -248,9 +263,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       logError({
         location: 'Login Page',
         form: 'Login Form',
-        message: 'Error interno del servidor durante el inicio de sesión.',
+        message: 'Error interno durante el inicio de sesión.',
       });
-      return { success: false, message: 'Error interno del servidor. Por favor, intente más tarde.' };
+      return { success: false, message: 'Error interno. Por favor, intente más tarde.' };
     }
   };
   
@@ -555,7 +570,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getTasksByAssignee,
         getDailyActivityCount,
         getUserActivityCounts,
-        sendPasswordRecoveryEmail
+        sendPasswordRecoveryEmail,
+        changeLogs
       }}
     >
       {children}

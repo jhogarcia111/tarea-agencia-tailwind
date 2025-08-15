@@ -20,12 +20,7 @@ export type ActivityLog = {
   location: string;
 };
 
-export type DataContextType = {
-  activityLogs: ActivityLog[];
-  auth: AuthType;
-  changeLogs: ChangeLog[]; // Add this line
-  // other properties
-};
+import { AuthState, ChangeLog } from '@/context/DataContext';
 
 export default function ActivityLogs() {
   const { activityLogs, auth, changeLogs } = useData();
