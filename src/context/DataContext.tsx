@@ -1,579 +1,582 @@
-import * as React from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from "sonner";
-import apiClient from './connection.js';
+import { 
+  profileService, 
+  clientService, 
+  taskService, 
+  activityLogService, 
+  errorLogService, 
+  changeLogService, 
+  authService,
+  type Profile,
+  type Client,
+  type Task,
+  type ActivityLog,
+  type ErrorLog,
+  type ChangeLog
+} from '@/services/supabaseService';
 
+// Re-export types from service
+export type { Profile, Client, Task, ActivityLog, ErrorLog, ChangeLog };
+
+// Legacy type aliases for backward compatibility
+export type User = Profile;
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  user: Profile | null;
+  session: any;
+  // Legacy properties for backward compatibility
+  isLoggedIn: boolean;
+  currentUser: Profile | null;
+}
+
+interface DataContextType {
+  // Auth
+  auth: AuthState;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  logout: () => Promise<void>;
+  signUp: (email: string, password: string, name: string) => Promise<{ success: boolean; message: string }>;
+  
+  // Data
+  users: Profile[];
+  clients: Client[];
+  tasks: Task[];
+  errorLogs: ErrorLog[];
+  activityLogs: ActivityLog[];
+  changeLogs: ChangeLog[];
+  
+  // Loading states
+  loading: boolean;
+  
+  // Add error log
+  logError: (error: Omit<ErrorLog, 'id' | 'created_at' | 'user_id'>) => Promise<void>;
+  
+  // CRUD operations
+  addUser: (user: Omit<Profile, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateUser: (user: Profile) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  addClient: (client: Omit<Client, 'id' | 'task_count' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateClient: (client: Client) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
+  addTask: (task: Omit<Task, 'id' | 'created_date' | 'created_at' | 'updated_at' | 'assignee' | 'client'>) => Promise<void>;
+  updateTask: (task: Task) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  
+  // Utility functions
+  getUserById: (id: string) => Profile | undefined;
+  getClientById: (id: string) => Client | undefined;
+  getTaskById: (id: string) => Task | undefined;
+  getTasksByClient: (clientName: string) => Task[];
+  getTasksByAssignee: (userName: string) => Task[];
+  
+  // Activity tracking
+  getDailyActivityCount: () => { date: string; count: number }[];
+  getUserActivityCounts: () => { user: string; count: number }[];
+
+  // Password recovery
+  sendPasswordRecoveryEmail: (email: string) => { success: boolean; message: string };
+  
+  // Refresh data
+  refreshData: () => Promise<void>;
+}
+
+const DataContext = createContext<DataContextType | undefined>(undefined);
+
+// Legacy notification context for backward compatibility
 export const NotificationContext = createContext({ notifications: [] });
 
-export const NotificationProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState([]);
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const response = await apiClient.get('/notifications');
-        setNotifications(response.data);
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      }
-    };
-
-    fetchNotifications();
-  }, []);
-
+export const NotificationProvider = ({ children }: { children: React.ReactNode }) => {
   return (
-    <NotificationContext.Provider value={{ notifications }}>
+    <NotificationContext.Provider value={{ notifications: [] }}>
       {children}
     </NotificationContext.Provider>
   );
 };
 
-// Define types for our data
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  password: string; // Added password field
-  role: string;
-  status: 'active' | 'inactive';
-  avatar: string;
-}
-
-export interface Client {
-  id: number;
-  name: string;
-  contact: string;
-  email: string;
-  status: 'active' | 'inactive';
-  taskCount: number;
-  industry: string;
-}
-
-export interface Task {
-  id: number;
-  title: string;
-  client: string;
-  assignee: string;
-  status: 'pending' | 'in-progress' | 'completed';
-  dueDate: string;
-  priority: 'low' | 'medium' | 'high';
-  description?: string;
-  createdDate: string; // New field for creation date
-}
-
-export interface ErrorLog {
-  id: number;
-  userId: number | null;
-  userRole: string | null;
-  location: string;
-  form: string | null;
-  message: string;
-  date: string;
-}
-
-export interface ActivityLog {
-  id: number;
-  userId: number;
-  userName: string;
-  action: string;
-  location: string;
-  date: string;
-}
-
-export interface ChangeLog {
-  id: number;
-  entity: string;
-  entityId: number;
-  action: string;
-  userId: number;
-  userName: string;
-  details: string;
-  timestamp: string;
-}
-
-export interface AuthState {
-  isLoggedIn: boolean;
-  currentUser: User | null;
-}
-
-interface DataContextType {
-  // Auth state
-  auth: AuthState;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  logout: () => void;
-  
-  // Original data management
-  users: User[];
-  clients: Client[];
-  tasks: Task[];
-  
-  // Error and activity logs
-  errorLogs: ErrorLog[];
-  activityLogs: ActivityLog[];
-  
-  // Change logs
-  changeLogs: ChangeLog[];
-  
-  // Add error log
-  logError: (error: Omit<ErrorLog, 'id' | 'date' | 'userId' | 'userRole'>) => void;
-  
-  // Original CRUD operations
-  addUser: (user: Omit<User, 'id' | 'avatar'>) => void;
-  updateUser: (user: User) => void;
-  deleteUser: (id: number) => void;
-  addClient: (client: Omit<Client, 'id' | 'taskCount'>) => void;
-  updateClient: (client: Client) => void;
-  deleteClient: (id: number) => void;
-  addTask: (task: Omit<Task, 'id' | 'createdDate'>) => void;
-  updateTask: (task: Task) => void;
-  deleteTask: (id: number) => void;
-  
-  // Getters
-  getUserById: (id: number) => User | undefined;
-  getClientById: (id: number) => Client | undefined;
-  getTaskById: (id: number) => Task | undefined;
-  getTasksByClient: (clientName: string) => Task[];
-  getTasksByAssignee: (userName: string) => Task[];
-  
-    // Activity tracking
-    getDailyActivityCount: () => { date: string; count: number }[];
-    getUserActivityCounts: () => { user: string; count: number }[];
-
-    // Password recovery
-    sendPasswordRecoveryEmail: (email: string) => { success: boolean; message: string };
-}
-
-const DataContext = createContext<DataContextType | undefined>(undefined);
-
-// Initial mock data
-const initialErrorLogs: ErrorLog[] = [];
-const initialActivityLogs: ActivityLog[] = [];
-
-export const getClients = async (): Promise<Client[]> => {
-  // Ensure this function returns a Promise<Client[]>
-  return [
-    // Example mock data
-    { id: 1, name: "Client A", contact: "123456789", email: "clienta@example.com", status: "active", taskCount: 0, industry: "Tech" },
-    { id: 2, name: "Client B", contact: "987654321", email: "clientb@example.com", status: "inactive", taskCount: 2, industry: "Finance" }
-  ];
-};
-
-export const getUsers = async (): Promise<User[]> => {
-  // Ensure this function returns a Promise<User[]>
-  return [
-    // Example mock data
-    { id: 1, name: "John Doe", email: "john@example.com", password: "123456", role: "admin", status: "active", avatar: "JD" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", password: "password", role: "user", status: "inactive", avatar: "JS" }
-  ];
-};
-
-const fetchLocalTasks = async (): Promise<Task[]> => {
-  // Example mock data
-  return [
-    { id: 1, title: "Task 1", client: "Client A", assignee: "John Doe", status: "pending", dueDate: "2023-12-01", priority: "high", createdDate: "2023-11-01" },
-    { id: 2, title: "Task 2", client: "Client B", assignee: "Jane Smith", status: "in-progress", dueDate: "2023-12-05", priority: "medium", createdDate: "2023-11-02" }
-  ];
-};
-
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load data from localStorage if available
-  const [users, setUsers] = useState<User[]>([]);
+  // State
+  const [users, setUsers] = useState<Profile[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>(() => {
-    const savedErrorLogs = localStorage.getItem('errorLogs');
-    return savedErrorLogs ? JSON.parse(savedErrorLogs) : initialErrorLogs;
-  });
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => {
-    const savedActivityLogs = localStorage.getItem('activityLogs');
-    return savedActivityLogs ? JSON.parse(savedActivityLogs) : initialActivityLogs;
-  });
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [changeLogs, setChangeLogs] = useState<ChangeLog[]>([]);
+  const [loading, setLoading] = useState(false);
   
-  // Auth state
-  const [auth, setAuth] = useState<AuthState>(() => {
-    const savedAuth = localStorage.getItem('auth');
-    return savedAuth ? JSON.parse(savedAuth) : { isLoggedIn: false, currentUser: null };
+  // Auth state with backward compatibility
+  const [auth, setAuth] = useState<AuthState>({
+    isAuthenticated: false,
+    user: null,
+    session: null,
+    isLoggedIn: false,
+    currentUser: null
   });
 
-  // Fetch initial data
+  // Initialize auth state
   useEffect(() => {
-    const fetchData = async () => {
-      const fetchedUsers = await getUsers();
-      const fetchedClients = await getClients();
-      const fetchedTasks = await fetchLocalTasks();
-      setUsers(fetchedUsers);
-      setClients(fetchedClients);
-      setTasks(fetchedTasks);
+    const initAuth = async () => {
+      try {
+        const session = await authService.getSession();
+        if (session) {
+          const user = await profileService.getCurrentUser();
+          setAuth({
+            isAuthenticated: true,
+            user,
+            session,
+            isLoggedIn: true,
+            currentUser: user
+          });
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      }
     };
-    fetchData();
+
+    initAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
+      if (session) {
+        try {
+          const user = await profileService.getCurrentUser();
+          setAuth({
+            isAuthenticated: true,
+            user,
+            session,
+            isLoggedIn: true,
+            currentUser: user
+          });
+          await refreshData();
+        } catch (error) {
+          console.error('Error getting user profile:', error);
+          setAuth({
+            isAuthenticated: false,
+            user: null,
+            session: null,
+            isLoggedIn: false,
+            currentUser: null
+          });
+        }
+      } else {
+        setAuth({
+          isAuthenticated: false,
+          user: null,
+          session: null,
+          isLoggedIn: false,
+          currentUser: null
+        });
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Save to localStorage whenever data changes
+  // Load data when authenticated
   useEffect(() => {
-    localStorage.setItem('errorLogs', JSON.stringify(errorLogs));
-  }, [errorLogs]);
-  
-  useEffect(() => {
-    localStorage.setItem('activityLogs', JSON.stringify(activityLogs));
-  }, [activityLogs]);
-  
-  useEffect(() => {
-    localStorage.setItem('auth', JSON.stringify(auth));
-  }, [auth]);
-  
-  // Login function - usando datos mock locales
+    if (auth.isAuthenticated) {
+      refreshData();
+    }
+  }, [auth.isAuthenticated]);
+
+  // Refresh all data
+  const refreshData = async () => {
+    if (!auth.isAuthenticated) return;
+    
+    setLoading(true);
+    try {
+      const [
+        usersData,
+        clientsData,
+        tasksData,
+        errorLogsData,
+        activityLogsData,
+        changeLogsData
+      ] = await Promise.all([
+        profileService.getAll(),
+        clientService.getAll(),
+        taskService.getAll(),
+        errorLogService.getAll(),
+        activityLogService.getAll(),
+        changeLogService.getAll()
+      ]);
+
+      setUsers(usersData);
+      setClients(clientsData);
+      setTasks(tasksData);
+      setErrorLogs(errorLogsData);
+      setActivityLogs(activityLogsData);
+      setChangeLogs(changeLogsData);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast.error('Error loading data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auth functions
   const login = async (email: string, password: string) => {
     try {
-      // Buscar usuario en los datos locales
-      const user = users.find(u => u.email === email && u.password === password);
-      
-      if (!user) {
-        logError({
-          location: 'Login Page',
-          form: 'Login Form',
-          message: `Intento de acceso con credenciales incorrectas: ${email}`,
-        });
-        return {
-          success: false,
-          message: 'Usuario no registrado. Por favor, contacte al administrador.',
-        };
-      }
-
-      if (user.status === 'inactive') {
-        logError({
-          location: 'Login Page',
-          form: 'Login Form',
-          message: `Intento de acceso con cuenta inactiva: ${email}`,
-        });
-        return {
-          success: false,
-          message: 'Esta cuenta está inactiva. Por favor, contacte al administrador.',
-        };
-      }
-
-      const updatedAuth = { isLoggedIn: true, currentUser: user };
-      setAuth(updatedAuth);
-
-      logActivity(user.id, user.name, 'Inicio de sesión', 'Login');
-
-      return { success: true, message: 'Inicio de sesión exitoso' };
-    } catch (error) {
-      console.error('Error al intentar iniciar sesión:', error);
-      logError({
+      await authService.signIn(email, password);
+      return { success: true, message: 'Login successful' };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      await logError({
         location: 'Login Page',
-        form: 'Login Form',
-        message: 'Error interno durante el inicio de sesión.',
+        form_name: 'Login Form',
+        message: `Login failed: ${error.message}`,
+        user_role: null
       });
-      return { success: false, message: 'Error interno. Por favor, intente más tarde.' };
-    }
-  };
-  
-  // Logout function
-  const logout = () => {
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Cierre de sesión", "Logout");
-    }
-    setAuth({ isLoggedIn: false, currentUser: null });
-  };
-
-  // Log error
-  const logError = (error: Omit<ErrorLog, 'id' | 'date' | 'userId' | 'userRole'>) => {
-    const newError: ErrorLog = {
-      ...error,
-      id: errorLogs.length > 0 ? Math.max(...errorLogs.map(e => e.id)) + 1 : 1,
-      userId: auth.currentUser?.id || null,
-      userRole: auth.currentUser?.role || null,
-      date: new Date().toISOString(),
-    };
-    setErrorLogs([...errorLogs, newError]);
-  };
-  
-  // Log activity
-  const logActivity = (userId: number, userName: string, action: string, location: string) => {
-    const newActivity: ActivityLog = {
-      id: activityLogs.length > 0 ? Math.max(...activityLogs.map(a => a.id)) + 1 : 1,
-      userId,
-      userName,
-      action,
-      location,
-      date: new Date().toISOString(),
-    };
-    setActivityLogs([...activityLogs, newActivity]);
-  };
-
-  // Log change
-  const logChange = (log: Omit<ChangeLog, 'id' | 'timestamp'>) => {
-    const newLog: ChangeLog = {
-      ...log,
-      id: changeLogs.length > 0 ? Math.max(...changeLogs.map(l => l.id)) + 1 : 1,
-      timestamp: new Date().toISOString(),
-    };
-    setChangeLogs([...changeLogs, newLog]);
-  };
-  
-  // Wrap CRUD operations to log activities and changes
-  const addUser = (user: Omit<User, 'id' | 'avatar'>) => {
-    const newUser: User = {
-      ...user,
-      id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
-      avatar: user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-    };
-    setUsers([...users, newUser]);
-    
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nuevo usuario: " + newUser.name, "Usuarios");
-    }
-  };
-
-  const updateUser = (updatedUser: User) => {
-    setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
-    
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó usuario: " + updatedUser.name, "Usuarios");
-    }
-  };
-
-  const deleteUser = (id: number) => {
-    const userToDelete = users.find(u => u.id === id);
-    setUsers(users.filter(user => user.id !== id));
-    
-    if (auth.currentUser && userToDelete) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Eliminó usuario: " + userToDelete.name, "Usuarios");
-    }
-  };
-
-  const addClient = (client: Omit<Client, 'id' | 'taskCount'>) => {
-    const newClient: Client = {
-      ...client,
-      id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
-      taskCount: 0,
-    };
-    setClients([...clients, newClient]);
-
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nuevo cliente: " + newClient.name, "Clientes");
-      logChange({
-        entity: 'client',
-        entityId: newClient.id,
-        action: 'create',
-        userId: auth.currentUser.id,
-        userName: auth.currentUser.name,
-        details: `Client ${newClient.name} created.`
-      });
-    }
-  };
-
-  const updateClient = (updatedClient: Client) => {
-    setClients(clients.map(client => client.id === updatedClient.id ? updatedClient : client));
-
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó cliente: " + updatedClient.name, "Clientes");
-      logChange({
-        entity: 'client',
-        entityId: updatedClient.id,
-        action: 'update',
-        userId: auth.currentUser.id,
-        userName: auth.currentUser.name,
-        details: `Client ${updatedClient.name} updated.`
-      });
-    }
-  };
-
-  const deleteClient = (id: number) => {
-    const clientToDelete = clients.find(c => c.id === id);
-    setClients(clients.filter(client => client.id !== id));
-
-    // Also delete all tasks associated with this client
-    if (clientToDelete) {
-      const clientTasks = tasks.filter(task => task.client === clientToDelete.name);
-      setTasks(tasks.filter(task => task.client !== clientToDelete.name));
-      
-      if (auth.currentUser) {
-        logActivity(
-          auth.currentUser.id, 
-          auth.currentUser.name, 
-          `Eliminó cliente: ${clientToDelete.name} y ${clientTasks.length} tareas asociadas`, 
-          "Clientes"
-        );
-        logChange({
-          entity: 'client',
-          entityId: clientToDelete.id,
-          action: 'delete',
-          userId: auth.currentUser.id,
-          userName: auth.currentUser.name,
-          details: `Client ${clientToDelete.name} deleted.`
-        });
-      }
-    }
-  };
-
-  const addTask = (task: Omit<Task, 'id' | 'createdDate'>) => {
-    const newTask: Task = {
-      ...task,
-      id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1,
-      createdDate: new Date().toISOString().split('T')[0], // Set creation date to today
-    };
-    setTasks([...tasks, newTask]);
-    
-    // Update client taskCount
-    const clientIndex = clients.findIndex(c => c.name === task.client);
-    if (clientIndex !== -1) {
-      const updatedClient = {
-        ...clients[clientIndex],
-        taskCount: clients[clientIndex].taskCount + 1
+      return { 
+        success: false, 
+        message: error.message || 'Login failed. Please try again.' 
       };
-      updateClient(updatedClient);
-    }
-    
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nueva tarea: " + newTask.title, "Tareas");
     }
   };
 
-  const updateTask = (updatedTask: Task) => {
-    const oldTask = tasks.find(t => t.id === updatedTask.id);
-    setTasks(tasks.map(task => task.id === updatedTask.id ? updatedTask : task));
-    
-    // Update client taskCount if client changed
-    if (oldTask && oldTask.client !== updatedTask.client) {
-      // Decrease count for old client
-      const oldClientIndex = clients.findIndex(c => c.name === oldTask.client);
-      if (oldClientIndex !== -1) {
-        const oldClientUpdated = {
-          ...clients[oldClientIndex],
-          taskCount: Math.max(0, clients[oldClientIndex].taskCount - 1)
-        };
-        updateClient(oldClientUpdated);
-      }
-      
-      // Increase count for new client
-      const newClientIndex = clients.findIndex(c => c.name === updatedTask.client);
-      if (newClientIndex !== -1) {
-        const newClientUpdated = {
-          ...clients[newClientIndex],
-          taskCount: clients[newClientIndex].taskCount + 1
-        };
-        updateClient(newClientUpdated);
-      }
-    }
-    
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó tarea: " + updatedTask.title, "Tareas");
+  const signUp = async (email: string, password: string, name: string) => {
+    try {
+      await authService.signUp(email, password, name);
+      return { 
+        success: true, 
+        message: 'Account created successfully. Please check your email for verification.' 
+      };
+    } catch (error: any) {
+      console.error('Sign up error:', error);
+      await logError({
+        location: 'Sign Up Page',
+        form_name: 'Sign Up Form',
+        message: `Sign up failed: ${error.message}`,
+        user_role: null
+      });
+      return { 
+        success: false, 
+        message: error.message || 'Sign up failed. Please try again.' 
+      };
     }
   };
 
-  const deleteTask = (id: number) => {
-    const taskToDelete = tasks.find(t => t.id === id);
-    setTasks(tasks.filter(task => task.id !== id));
-    
-    // Update client taskCount
-    if (taskToDelete) {
-      const clientIndex = clients.findIndex(c => c.name === taskToDelete.client);
-      if (clientIndex !== -1) {
-        const updatedClient = {
-          ...clients[clientIndex],
-          taskCount: Math.max(0, clients[clientIndex].taskCount - 1)
-        };
-        updateClient(updatedClient);
+  const logout = async () => {
+    try {
+      if (auth.user) {
+        await logActivity(auth.user.name, 'Logged out', 'Authentication');
       }
-      
-      if (auth.currentUser) {
-        logActivity(auth.currentUser.id, auth.currentUser.name, "Eliminó tarea: " + taskToDelete.title, "Tareas");
-      }
+      await authService.signOut();
+    } catch (error) {
+      console.error('Logout error:', error);
     }
   };
+
+  // Logging functions
+  const logError = async (error: Omit<ErrorLog, 'id' | 'created_at' | 'user_id'>) => {
+    try {
+      const newError = {
+        ...error,
+        user_id: auth.user?.id || null
+      };
+      await errorLogService.create(newError);
+      await refreshData(); // Refresh to get updated logs
+    } catch (err) {
+      console.error('Error logging error:', err);
+    }
+  };
+
+  const logActivity = async (user_name: string, action: string, details?: string) => {
+    try {
+      const newActivity = {
+        user_id: auth.user?.id || null,
+        user_name,
+        action,
+        details
+      };
+      await activityLogService.create(newActivity);
+      await refreshData(); // Refresh to get updated logs
+    } catch (error) {
+      console.error('Error logging activity:', error);
+    }
+  };
+
+  const logChange = async (entity_type: 'user' | 'client' | 'task', entity_id: string, action: 'create' | 'update' | 'delete', changes?: any) => {
+    if (!auth.user) return;
+    
+    try {
+      const newChange = {
+        user_id: auth.user.id,
+        user_name: auth.user.name,
+        entity_type,
+        entity_id,
+        action,
+        changes
+      };
+      await changeLogService.create(newChange);
+      await refreshData(); // Refresh to get updated logs
+    } catch (error) {
+      console.error('Error logging change:', error);
+    }
+  };
+
+  // CRUD operations
+  const addUser = async (user: Omit<Profile, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      // Note: In a real implementation, you'd need to create users via auth.signUp
+      toast.error('User creation should be handled via sign up process');
+    } catch (error: any) {
+      console.error('Error adding user:', error);
+      toast.error('Failed to add user');
+      await logError({
+        location: 'Users Page',
+        form_name: 'Add User Form',
+        message: `Failed to add user: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const updateUser = async (updatedUser: Profile) => {
+    try {
+      await profileService.update(updatedUser.id, updatedUser);
+      await logActivity(auth.user?.name || 'System', `Updated user: ${updatedUser.name}`);
+      await logChange('user', updatedUser.id, 'update');
+      await refreshData();
+      toast.success('User updated successfully');
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      toast.error('Failed to update user');
+      await logError({
+        location: 'Users Page',
+        form_name: 'Edit User Form',
+        message: `Failed to update user: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const deleteUser = async (id: string) => {
+    try {
+      const user = users.find(u => u.id === id);
+      // Note: Cannot delete profiles directly, only deactivate
+      if (user) {
+        await profileService.update(id, { ...user, status: 'inactive' });
+        await logActivity(auth.user?.name || 'System', `Deactivated user: ${user.name}`);
+        await logChange('user', id, 'delete');
+        await refreshData();
+        toast.success('User deactivated successfully');
+      }
+    } catch (error: any) {
+      console.error('Error deactivating user:', error);
+      toast.error('Failed to deactivate user');
+      await logError({
+        location: 'Users Page',
+        message: `Failed to deactivate user: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const addClient = async (client: Omit<Client, 'id' | 'task_count' | 'created_at' | 'updated_at'>) => {
+    try {
+      await clientService.create(client);
+      await logActivity(auth.user?.name || 'System', `Added new client: ${client.name}`);
+      await refreshData();
+      toast.success('Client added successfully');
+    } catch (error: any) {
+      console.error('Error adding client:', error);
+      toast.error('Failed to add client');
+      await logError({
+        location: 'Clients Page',
+        form_name: 'Add Client Form',
+        message: `Failed to add client: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const updateClient = async (updatedClient: Client) => {
+    try {
+      await clientService.update(updatedClient.id, updatedClient);
+      await logActivity(auth.user?.name || 'System', `Updated client: ${updatedClient.name}`);
+      await logChange('client', updatedClient.id, 'update');
+      await refreshData();
+      toast.success('Client updated successfully');
+    } catch (error: any) {
+      console.error('Error updating client:', error);
+      toast.error('Failed to update client');
+      await logError({
+        location: 'Clients Page',
+        form_name: 'Edit Client Form',
+        message: `Failed to update client: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const deleteClient = async (id: string) => {
+    try {
+      const client = clients.find(c => c.id === id);
+      await clientService.delete(id);
+      if (client) {
+        await logActivity(auth.user?.name || 'System', `Deleted client: ${client.name}`);
+        await logChange('client', id, 'delete');
+      }
+      await refreshData();
+      toast.success('Client deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting client:', error);
+      toast.error('Failed to delete client');
+      await logError({
+        location: 'Clients Page',
+        message: `Failed to delete client: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const addTask = async (task: Omit<Task, 'id' | 'created_date' | 'created_at' | 'updated_at' | 'assignee' | 'client'>) => {
+    try {
+      const newTask = {
+        ...task,
+        created_date: new Date().toISOString()
+      };
+      await taskService.create(newTask);
+      await logActivity(auth.user?.name || 'System', `Added new task: ${task.title}`);
+      await refreshData();
+      toast.success('Task added successfully');
+    } catch (error: any) {
+      console.error('Error adding task:', error);
+      toast.error('Failed to add task');
+      await logError({
+        location: 'Tasks Page',
+        form_name: 'Add Task Form',
+        message: `Failed to add task: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const updateTask = async (updatedTask: Task) => {
+    try {
+      await taskService.update(updatedTask.id, updatedTask);
+      await logActivity(auth.user?.name || 'System', `Updated task: ${updatedTask.title}`);
+      await logChange('task', updatedTask.id, 'update');
+      await refreshData();
+      toast.success('Task updated successfully');
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+      await logError({
+        location: 'Tasks Page',
+        form_name: 'Edit Task Form',
+        message: `Failed to update task: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  const deleteTask = async (id: string) => {
+    try {
+      const task = tasks.find(t => t.id === id);
+      await taskService.delete(id);
+      if (task) {
+        await logActivity(auth.user?.name || 'System', `Deleted task: ${task.title}`);
+        await logChange('task', id, 'delete');
+      }
+      await refreshData();
+      toast.success('Task deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+      await logError({
+        location: 'Tasks Page',
+        message: `Failed to delete task: ${error.message}`,
+        user_role: auth.user?.role || null
+      });
+    }
+  };
+
+  // Utility functions
+  const getUserById = (id: string) => users.find(u => u.id === id);
+  const getClientById = (id: string) => clients.find(c => c.id === id);
+  const getTaskById = (id: string) => tasks.find(t => t.id === id);
   
-  // Get daily activity count for the chart
+  const getTasksByClient = (clientName: string) => 
+    tasks.filter(task => task.client?.name === clientName);
+  
+  const getTasksByAssignee = (userName: string) => 
+    tasks.filter(task => task.assignee?.name === userName);
+
+  // Activity tracking
   const getDailyActivityCount = () => {
     const counts: { [key: string]: number } = {};
     
-    // Group activities by date (only the day part)
     activityLogs.forEach(log => {
-      const date = new Date(log.date).toISOString().split('T')[0];
+      const date = new Date(log.created_at).toISOString().split('T')[0];
       counts[date] = (counts[date] || 0) + 1;
     });
     
-    // Convert to array format for the chart
-    const result = Object.keys(counts).map(date => ({
+    return Object.keys(counts).map(date => ({
       date,
       count: counts[date]
-    }));
-    
-    // Sort by date
-    return result.sort((a, b) => a.date.localeCompare(b.date));
+    })).sort((a, b) => a.date.localeCompare(b.date));
   };
 
   const getUserActivityCounts = () => {
     const counts: { [key: string]: number } = {};
-
+    
     activityLogs.forEach(log => {
-      counts[log.userName] = (counts[log.userName] || 0) + 1;
+      counts[log.user_name] = (counts[log.user_name] || 0) + 1;
     });
-
+    
     return Object.keys(counts).map(user => ({
       user,
       count: counts[user]
-    }));
+    })).sort((a, b) => b.count - a.count);
   };
 
-  const getUserById = (id: number) => users.find(user => user.id === id);
-  const getClientById = (id: number) => clients.find(client => client.id === id);
-  const getTaskById = (id: number) => tasks.find(task => task.id === id);
-  const getTasksByClient = (clientName: string) => tasks.filter(task => task.client === clientName);
-  const getTasksByAssignee = (userName: string) => tasks.filter(task => task.assignee === userName);
-
+  // Password recovery (mock implementation)
   const sendPasswordRecoveryEmail = (email: string) => {
-    const user = users.find(u => u.email === email);
+    // In a real implementation, this would send an actual email
+    return {
+      success: true,
+      message: 'Password recovery email sent. Please check your inbox.'
+    };
+  };
 
-    if (!user) {
-      logError({
-        location: "Forgot Password",
-        form: "Password Recovery",
-        message: `Intento de recuperación para un correo no registrado: ${email}`
-      });
-      return { success: false, message: "Correo no registrado. Por favor, contacte al administrador." };
-    }
-
-    // Simulate sending an email
-    console.log(`Enviando correo a ${email} con la contraseña: ${user.password}`);
-    toast.success(`Correo enviado a ${email}`);
-
-    return { success: true, message: "Correo enviado con éxito." };
+  const contextValue: DataContextType = {
+    auth,
+    login,
+    logout,
+    signUp,
+    users,
+    clients,
+    tasks,
+    errorLogs,
+    activityLogs,
+    changeLogs,
+    loading,
+    logError,
+    addUser,
+    updateUser,
+    deleteUser,
+    addClient,
+    updateClient,
+    deleteClient,
+    addTask,
+    updateTask,
+    deleteTask,
+    getUserById,
+    getClientById,
+    getTaskById,
+    getTasksByClient,
+    getTasksByAssignee,
+    getDailyActivityCount,
+    getUserActivityCounts,
+    sendPasswordRecoveryEmail,
+    refreshData
   };
 
   return (
-    <DataContext.Provider
-      value={{
-        auth,
-        login,
-        logout,
-        users,
-        clients,
-        tasks,
-        errorLogs,
-        activityLogs,
-        logError,
-        addUser,
-        updateUser,
-        deleteUser,
-        addClient,
-        updateClient,
-        deleteClient,
-        addTask,
-        updateTask,
-        deleteTask,
-        getUserById,
-        getClientById,
-        getTaskById,
-        getTasksByClient,
-        getTasksByAssignee,
-        getDailyActivityCount,
-        getUserActivityCounts,
-        sendPasswordRecoveryEmail,
-        changeLogs
-      }}
-    >
+    <DataContext.Provider value={contextValue}>
       {children}
     </DataContext.Provider>
   );
@@ -586,4 +589,3 @@ export const useData = () => {
   }
   return context;
 };
-

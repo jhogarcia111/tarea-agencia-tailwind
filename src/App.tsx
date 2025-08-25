@@ -3,8 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { NotificationProvider } from "./context/DataContext";
-import NotificationList from "@/components/ui/NotificationList";
+import { DataProvider } from "./context/DataContext";
+import Auth from "./pages/Auth";
 
 // Pages
 import Login from "./pages/Login";
@@ -23,15 +23,15 @@ import { useEffect } from "react";
 const queryClient = new QueryClient();
 
 const App = () => {
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <NotificationProvider>
+        <DataProvider>
           <BrowserRouter>
             <Routes>
               {/* Public routes */}
-              <Route path="/login" element={<Login />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/login" element={<Navigate to="/auth" replace />} />
               {/* Protected routes */}
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -43,11 +43,10 @@ const App = () => {
               <Route path="/activity-logs" element={<ProtectedRoute><ActivityLogs /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <NotificationList />
             <Toaster />
             <Sonner />
           </BrowserRouter>
-        </NotificationProvider>
+        </DataProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
