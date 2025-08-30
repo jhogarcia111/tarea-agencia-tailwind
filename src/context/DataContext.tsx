@@ -11,14 +11,19 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await apiClient.get('/notifications');
-        setNotifications(response.data);
+        const response = await apiClient.get('/api/notifications'); // Updated endpoint to include /api
+        return response.data;
       } catch (error) {
+        if (error.response && error.response.status === 404) {
+          console.warn('No notifications found.');
+          return []; // Return an empty array if no notifications are found
+        }
         console.error('Error fetching notifications:', error);
+        throw new Error('Error fetching notifications');
       }
     };
 
-    fetchNotifications();
+    fetchNotifications().then(setNotifications);
   }, []);
 
   return (
@@ -52,13 +57,16 @@ export interface Client {
 export interface Task {
   id: number;
   title: string;
-  client: string;
-  assignee: string;
+  description: string;
   status: 'pending' | 'in-progress' | 'completed';
-  dueDate: string;
-  priority: 'low' | 'medium' | 'high';
-  description?: string;
-  createdDate: string; // New field for creation date
+  user_id: number;
+  client_id: number;
+  client?: string; // For frontend display
+  assignee?: string; // For frontend display
+  priority?: 'low' | 'medium' | 'high';
+  dueDate?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ErrorLog {
@@ -121,7 +129,7 @@ interface DataContextType {
   addClient: (client: Omit<Client, 'id' | 'taskCount'>) => void;
   updateClient: (client: Client) => void;
   deleteClient: (id: number) => void;
-  addTask: (task: Omit<Task, 'id'>) => void;
+  addTask: (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => void;
   updateTask: (task: Task) => void;
   deleteTask: (id: number) => void;
   
@@ -138,6 +146,10 @@ interface DataContextType {
 
   // Password recovery
   sendPasswordRecoveryEmail: (email: string) => { success: boolean; message: string };
+  
+  // Settings functions
+  getSettings: () => Promise<any>;
+  updateSettings: (settings: any) => Promise<any>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -147,29 +159,50 @@ const initialErrorLogs: ErrorLog[] = [];
 const initialActivityLogs: ActivityLog[] = [];
 
 export const getClients = async (): Promise<Client[]> => {
-  // Ensure this function returns a Promise<Client[]>
-  return [
-    // Example mock data
-    { id: 1, name: "Client A", contact: "123456789", email: "clienta@example.com", status: "active", taskCount: 0, industry: "Tech" },
-    { id: 2, name: "Client B", contact: "987654321", email: "clientb@example.com", status: "inactive", taskCount: 2, industry: "Finance" }
-  ];
+  try {
+    const response = await apiClient.get('/api/clients');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    // Fallback to mock data if API fails
+    return [
+      { id: 1, name: "Client A", contact: "123456789", email: "clienta@example.com", status: "active", taskCount: 0, industry: "Tech" },
+      { id: 2, name: "Client B", contact: "987654321", email: "clientb@example.com", status: "inactive", taskCount: 2, industry: "Finance" }
+    ];
+  }
 };
 
 export const getUsers = async (): Promise<User[]> => {
-  // Ensure this function returns a Promise<User[]>
-  return [
-    // Example mock data
-    { id: 1, name: "John Doe", email: "john@example.com", password: "123456", role: "admin", status: "active", avatar: "JD" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", password: "password", role: "user", status: "inactive", avatar: "JS" }
-  ];
+  try {
+    const response = await apiClient.get('/api/users');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    // Fallback to mock data if API fails
+    return [
+      { id: 1, name: "John Doe", email: "john@example.com", password: "123456", role: "admin", status: "active", avatar: "JD" },
+      { id: 2, name: "Jane Smith", email: "jane@example.com", password: "password", role: "user", status: "inactive", avatar: "JS" }
+    ];
+  }
 };
 
 const fetchLocalTasks = async (): Promise<Task[]> => {
-  // Example mock data
-  return [
-    { id: 1, title: "Task 1", client: "Client A", assignee: "John Doe", status: "pending", dueDate: "2023-12-01", priority: "high", createdDate: "2023-11-01" },
-    { id: 2, title: "Task 2", client: "Client B", assignee: "Jane Smith", status: "in-progress", dueDate: "2023-12-05", priority: "medium", createdDate: "2023-11-02" }
-  ];
+  try {
+    const response = await apiClient.get('/api/tasks');
+    if (
+      response.status === 200 &&
+      response.headers['content-type']?.includes('application/json') &&
+      Array.isArray(response.data)
+    ) {
+      return response.data;
+    } else {
+      console.error('Unexpected response format:', response);
+      throw new Error('Invalid response format');
+    }
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    throw error;
+  }
 };
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -393,58 +426,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addTask = (task: Omit<Task, 'id' | 'createdDate'>) => {
-    const newTask: Task = {
-      ...task,
-      id: tasks.length > 0 ? Math.max(...tasks.map(t => t.id)) + 1 : 1,
-      createdDate: new Date().toISOString().split('T')[0], // Set creation date to today
-    };
-    setTasks([...tasks, newTask]);
-    
-    // Update client taskCount
-    const clientIndex = clients.findIndex(c => c.name === task.client);
-    if (clientIndex !== -1) {
-      const updatedClient = {
-        ...clients[clientIndex],
-        taskCount: clients[clientIndex].taskCount + 1
-      };
-      updateClient(updatedClient);
-    }
-    
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nueva tarea: " + newTask.title, "Tareas");
+  const addTask = async (task: Omit<Task, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const response = await apiClient.post('/api/tasks', task);
+      const newTaskId = response.data.id;
+      
+      // Fetch the newly created task to get all fields
+      const newTaskResponse = await apiClient.get(`/api/tasks/${newTaskId}`);
+      const newTask = newTaskResponse.data;
+      
+      setTasks([...tasks, newTask]);
+      
+      // Update client taskCount
+      const clientIndex = clients.findIndex(c => c.id === task.client_id);
+      if (clientIndex !== -1) {
+        const updatedClient = {
+          ...clients[clientIndex],
+          taskCount: clients[clientIndex].taskCount + 1
+        };
+        updateClient(updatedClient);
+      }
+      
+      if (auth.currentUser) {
+        logActivity(auth.currentUser.id, auth.currentUser.name, "Agregó nueva tarea: " + newTask.title, "Tareas");
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      throw error;
     }
   };
 
-  const updateTask = (updatedTask: Task) => {
-    const oldTask = tasks.find(t => t.id === updatedTask.id);
-    setTasks(tasks.map(task => task.id === updatedTask.id ? updatedTask : task));
-    
-    // Update client taskCount if client changed
-    if (oldTask && oldTask.client !== updatedTask.client) {
-      // Decrease count for old client
-      const oldClientIndex = clients.findIndex(c => c.name === oldTask.client);
-      if (oldClientIndex !== -1) {
-        const oldClientUpdated = {
-          ...clients[oldClientIndex],
-          taskCount: Math.max(0, clients[oldClientIndex].taskCount - 1)
-        };
-        updateClient(oldClientUpdated);
+  const updateTask = async (updatedTask: Task) => {
+    try {
+      await apiClient.put(`/api/tasks/${updatedTask.id}`, updatedTask);
+      
+      const oldTask = tasks.find(t => t.id === updatedTask.id);
+      setTasks(tasks.map(task => task.id === updatedTask.id ? updatedTask : task));
+      
+      // Update client taskCount if client changed
+      if (oldTask && oldTask.client_id !== updatedTask.client_id) {
+        // Decrease count for old client
+        const oldClientIndex = clients.findIndex(c => c.id === oldTask.client_id);
+        if (oldClientIndex !== -1) {
+          const oldClientUpdated = {
+            ...clients[oldClientIndex],
+            taskCount: Math.max(0, clients[oldClientIndex].taskCount - 1)
+          };
+          updateClient(oldClientUpdated);
+        }
+        
+        // Increase count for new client
+        const newClientIndex = clients.findIndex(c => c.id === updatedTask.client_id);
+        if (newClientIndex !== -1) {
+          const newClientUpdated = {
+            ...clients[newClientIndex],
+            taskCount: clients[newClientIndex].taskCount + 1
+          };
+          updateClient(newClientUpdated);
+        }
       }
       
-      // Increase count for new client
-      const newClientIndex = clients.findIndex(c => c.name === updatedTask.client);
-      if (newClientIndex !== -1) {
-        const newClientUpdated = {
-          ...clients[newClientIndex],
-          taskCount: clients[newClientIndex].taskCount + 1
-        };
-        updateClient(newClientUpdated);
+      if (auth.currentUser) {
+        logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó tarea: " + updatedTask.title, "Tareas");
       }
-    }
-    
-    if (auth.currentUser) {
-      logActivity(auth.currentUser.id, auth.currentUser.name, "Actualizó tarea: " + updatedTask.title, "Tareas");
+    } catch (error) {
+      console.error('Error updating task:', error);
+      throw error;
     }
   };
 
@@ -454,7 +501,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Update client taskCount
     if (taskToDelete) {
-      const clientIndex = clients.findIndex(c => c.name === taskToDelete.client);
+      const clientIndex = clients.findIndex(c => c.id === taskToDelete.client_id);
       if (clientIndex !== -1) {
         const updatedClient = {
           ...clients[clientIndex],
@@ -505,8 +552,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getUserById = (id: number) => users.find(user => user.id === id);
   const getClientById = (id: number) => clients.find(client => client.id === id);
   const getTaskById = (id: number) => tasks.find(task => task.id === id);
-  const getTasksByClient = (clientName: string) => tasks.filter(task => task.client === clientName);
-  const getTasksByAssignee = (userName: string) => tasks.filter(task => task.assignee === userName);
+  const getTasksByClient = (clientName: string) => tasks.filter(task => {
+    const client = clients.find(c => c.id === task.client_id);
+    return client?.name === clientName;
+  });
+  const getTasksByAssignee = (userName: string) => tasks.filter(task => {
+    const user = users.find(u => u.id === task.user_id);
+    return user?.name === userName;
+  });
 
   const sendPasswordRecoveryEmail = (email: string) => {
     const user = users.find(u => u.email === email);
@@ -525,6 +578,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toast.success(`Correo enviado a ${email}`);
 
     return { success: true, message: "Correo enviado con éxito." };
+  };
+
+  // Settings functions
+  const getSettings = async () => {
+    try {
+      const response = await apiClient.get('/api/settings');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+      return {
+        agency_name: 'Mi Agencia',
+        email: 'contacto@miagencia.com',
+        website: 'https://miagencia.com'
+      };
+    }
+  };
+
+  const updateSettings = async (settings: any) => {
+    try {
+      const response = await apiClient.put('/api/settings', settings);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      throw error;
+    }
   };
 
   return (
@@ -555,7 +633,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         getTasksByAssignee,
         getDailyActivityCount,
         getUserActivityCounts,
-        sendPasswordRecoveryEmail
+        sendPasswordRecoveryEmail,
+        getSettings,
+        updateSettings
       }}
     >
       {children}

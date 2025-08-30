@@ -1,13 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { useEffect, useState } from "react";
+// Removed incorrect import as the function is defined in this file
 
-export async function getClients(): Promise<{ name: string; value: number; color: string }[]> {
-  // Ensure this function returns a promise resolving to an array of clients
+export async function fetchClientTaskDistribution() {
+  // Implementation of the function
   return [
-    { name: "Client A", value: 10, color: "#FF0000" },
-    { name: "Client B", value: 20, color: "#00FF00" },
-    { name: "Client C", value: 30, color: "#0000FF" },
+    { name: "Client A", taskCount: 10, color: "#ff0000" },
+    { name: "Client B", taskCount: 20, color: "#00ff00" },
+    { name: "Client C", taskCount: 15, color: "#0000ff" },
   ];
 }
 
@@ -16,13 +17,17 @@ export function ClientDistributionChart() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const clients = await getClients();
-      const formattedData = clients.map(client => ({
-        name: client.name,
-        value: client.value,
-        color: client.color,
-      }));
-      setData(formattedData);
+      try {
+        const clients = await fetchClientTaskDistribution();
+        const formattedData = clients.map(client => ({
+          name: client.name,
+          value: client.taskCount,
+          color: client.color || "#8884d8", // Default color if not provided
+        }));
+        setData(formattedData);
+      } catch (error) {
+        console.error("Error fetching client task distribution:", error);
+      }
     };
     fetchData();
   }, []);

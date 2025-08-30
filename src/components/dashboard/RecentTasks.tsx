@@ -1,86 +1,107 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, XCircle, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-// Mock data for recent tasks
-const recentTasks = [
-  {
-    id: 1,
-    title: "Diseñar banner para campaña de Facebook",
-    client: "Acme Inc.",
-    assignee: "María López",
-    status: "completed",
-    dueDate: "2025-04-10",
-  },
-  {
-    id: 2,
-    title: "Crear copy para publicación de Instagram",
-    client: "TechCorp",
-    assignee: "Carlos Rodríguez",
-    status: "in-progress",
-    dueDate: "2025-04-15",
-  },
-  {
-    id: 3,
-    title: "Análisis de rendimiento de campaña",
-    client: "Globex",
-    assignee: "Ana Martínez",
-    status: "pending",
-    dueDate: "2025-04-20",
-  },
-  {
-    id: 4,
-    title: "Optimizar palabras clave para SEO",
-    client: "Smith & Co",
-    assignee: "Juan Pérez",
-    status: "in-progress",
-    dueDate: "2025-04-16",
-  },
-  {
-    id: 5,
-    title: "Revisión de contenido del blog",
-    client: "Acme Inc.",
-    assignee: "María López",
-    status: "pending",
-    dueDate: "2025-04-25",
-  },
-];
+import { useData } from "@/context/DataContext";
+import { useNavigate } from "react-router-dom";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function RecentTasks() {
+  const { tasks, users, clients } = useData();
+  const navigate = useNavigate();
+
+  // Función para obtener el nombre del usuario asignado
+  const getUserName = (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    return user ? user.name : 'Sin asignar';
+  };
+
+  // Función para obtener el nombre del cliente
+  const getClientName = (clientId: number) => {
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.name : 'Cliente no encontrado';
+  };
+
+  // Obtener las 5 tareas más recientes
+  const recentTasks = tasks
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+
+  // Función para navegar a la edición de la tarea
+  const handleTaskClick = (taskId: number) => {
+    navigate(`/tasks/edit/${taskId}`);
+  };
+
+  // Si no hay tareas, mostrar mensaje
+  if (recentTasks.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Tareas Recientes</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="text-center text-muted-foreground">
+            <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No hay tareas recientes</p>
+            <p className="text-sm">Las tareas aparecerán aquí cuando se creen</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Tareas Recientes</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y">
-          {recentTasks.map((task) => (
-            <div
-              key={task.id}
-              className="p-4 hover:bg-secondary/50 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="grid gap-1">
-                  <div className="font-medium">{task.title}</div>
-                  <div className="text-sm text-muted-foreground">
-                    <span>Cliente: {task.client}</span>
-                    <span className="mx-2">•</span>
-                    <span>Asignado: {task.assignee}</span>
+    <TooltipProvider>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tareas Recientes</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y">
+            {recentTasks.map((task) => (
+              <Tooltip key={task.id}>
+                <TooltipTrigger asChild>
+                  <div
+                    className="p-4 hover:bg-secondary/50 transition-colors cursor-pointer group"
+                    onClick={() => handleTaskClick(task.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="grid gap-1 flex-1">
+                        <div className="font-medium group-hover:text-primary transition-colors">
+                          {task.title}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          <span>Cliente: {getClientName(task.client_id)}</span>
+                          <span className="mx-2">•</span>
+                          <span>Asignado: {getUserName(task.user_id)}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <TaskStatusBadge status={task.status} />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                    </div>
+                    <div className="mt-2 text-xs text-muted-foreground flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Creada: {formatDate(task.created_at)}
+                    </div>
                   </div>
-                </div>
-                <TaskStatusBadge status={task.status} />
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground flex items-center">
-                <Clock className="h-3 w-3 mr-1" />
-                Fecha límite: {formatDate(task.dueDate)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Haz clic para editar esta tarea</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </TooltipProvider>
   );
 }
 

@@ -39,14 +39,30 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useLocation, useNavigate } from "react-router-dom";
 
-export function TaskTable() {
-  const { tasks, deleteTask } = useData();
+interface TaskTableProps {
+  selectedDate?: Date | null;
+}
+
+export function TaskTable({ selectedDate }: TaskTableProps) {
+  const { tasks, deleteTask, users, clients } = useData();
   const [filterText, setFilterText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Función para obtener el nombre del usuario asignado
+  const getUserName = (userId: number) => {
+    const user = users.find(u => u.id === userId);
+    return user ? user.name : 'Sin asignar';
+  };
+
+  // Función para obtener el nombre del cliente
+  const getClientName = (clientId: number) => {
+    const client = clients.find(c => c.id === clientId);
+    return client ? client.name : 'Cliente no encontrado';
+  };
 
   // Parse query parameters to filter by client if needed
   const queryParams = new URLSearchParams(location.search);
@@ -56,12 +72,16 @@ export function TaskTable() {
     (task) =>
       // Text filter
       (task.title.toLowerCase().includes(filterText.toLowerCase()) ||
-        task.client.toLowerCase().includes(filterText.toLowerCase()) ||
-        task.assignee.toLowerCase().includes(filterText.toLowerCase())) &&
+        getClientName(task.client_id).toLowerCase().includes(filterText.toLowerCase()) ||
+        getUserName(task.user_id).toLowerCase().includes(filterText.toLowerCase())) &&
       // Status filter
       (statusFilter === "all" || task.status === statusFilter) &&
       // Client filter
-      (clientFilter ? task.client === clientFilter : true)
+      (clientFilter ? getClientName(task.client_id) === clientFilter : true) &&
+      // Date filter
+      (selectedDate ? 
+        (task.dueDate && new Date(task.dueDate).toDateString() === selectedDate.toDateString()) : 
+        true)
   );
 
   const handleDeleteClick = (taskId: number) => {
@@ -92,10 +112,23 @@ export function TaskTable() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>
-            {clientFilter ? `Tareas de ${clientFilter}` : "Tareas"}
+            {selectedDate 
+              ? `Tareas para ${selectedDate.toLocaleDateString('es-ES', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}`
+              : clientFilter 
+                ? `Tareas de ${clientFilter}` 
+                : "Tareas"
+            }
           </CardTitle>
           <CardDescription>
-            Gestione las tareas asignadas a los clientes.
+            {selectedDate 
+              ? `Tareas con fecha límite el ${selectedDate.toLocaleDateString()}`
+              : "Gestione las tareas asignadas a los clientes."
+            }
           </CardDescription>
         </div>
       </CardHeader>
@@ -177,7 +210,7 @@ export function TaskTable() {
                       <div>
                         <div className="font-medium">{task.title}</div>
                         <div className="text-sm text-muted-foreground md:hidden">
-                          {task.client} • {task.assignee}
+                          {getClientName(task.client_id)} • {getUserName(task.user_id)}
                         </div>
                         <div className="md:hidden mt-1">
                           <PriorityBadge priority={task.priority} />
@@ -185,22 +218,22 @@ export function TaskTable() {
                       </div>
                     </td>
                     <td className="p-4 align-middle hidden md:table-cell">
-                      {task.client}
+                      {getClientName(task.client_id)}
                     </td>
                     <td className="p-4 align-middle hidden md:table-cell">
-                      {task.assignee}
+                      {getUserName(task.user_id)}
                     </td>
                     <td className="p-4 align-middle">
                       <TaskStatusBadge status={task.status} />
                     </td>
                     <td className="p-4 align-middle hidden md:table-cell">
                       <div className="flex items-center">
-                        <span className="mr-2">{formatDate(task.dueDate)}</span>
+                        <span className="mr-2">{task.dueDate ? formatDate(task.dueDate) : 'Sin fecha límite'}</span>
                         <PriorityBadge priority={task.priority} />
                       </div>
                     </td>
                     <td className="p-4 align-middle hidden md:table-cell">
-                      {formatDate(task.createdDate)}
+                      {formatDate(task.created_at)}
                     </td>
                     <td className="p-4 align-middle text-right">
                       <DropdownMenu>

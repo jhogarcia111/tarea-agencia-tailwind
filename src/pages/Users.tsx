@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { UserPlus } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { getUsers, createUser, updateUser, deleteUser } from '@/services/userService';
+import { getUsers, createUser, updateUser, deleteUser, getUserById } from '@/services/userService';
 
 export default function Users() {
   const [isUserFormOpen, setIsUserFormOpen] = useState(false);
@@ -17,6 +17,27 @@ export default function Users() {
   
   const isNewUserRoute = location.pathname === "/users/new";
   const isEditUserRoute = location.pathname.includes("/users/edit/");
+  const [userData, setUserData] = useState(null);
+
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+      if (isEditUserRoute && id) {
+        console.log(`Fetching user data for ID: ${id}`); // Log para depuración
+        try {
+          const data = await getUserById(Number(id)); // Llama al endpoint correcto desde userService
+          if (data) {
+            console.log('User data fetched:', data); // Log para confirmar los datos obtenidos
+            setUserData(data); // Actualiza el estado con los datos del usuario
+          } else {
+            console.warn(`User with ID ${id} not found.`);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      }
+    };
+    fetchUserData();
+  }, [isEditUserRoute, id]);
 
   const openNewUserForm = () => {
     navigate("/users/new");
@@ -26,17 +47,6 @@ export default function Users() {
   const handleFormClose = () => {
     navigate("/users");
     setIsUserFormOpen(false);
-  };
-
-  const getUserById = (userId: number) => {
-    // Replace this with the actual logic to fetch user data by ID
-    return {
-      id: userId,
-      name: "John Doe",
-      email: "johndoe@example.com",
-      role: "User", // Default role
-      isActive: true // Default active status
-    };
   };
 
   const fetchUsers = async () => {
@@ -118,16 +128,20 @@ export default function Users() {
         {/* Edit user form */}
         {isEditUserRoute && id && (
           <Sheet open={true} onOpenChange={handleFormClose}>
-            <SheetContent className="sm:max-w-md overflow-y-auto">
+            <SheetContent className="sm:max-w-md overflow-y-auto" role="dialog">
               <SheetHeader>
                 <SheetTitle>Editar Usuario</SheetTitle>
               </SheetHeader>
               <div className="mt-6">
-                <UserForm
-                  editMode={true}
-                  onCancel={handleFormClose}
-                  initialData={id ? getUserById(Number(id)) : undefined}
-                />
+                {userData ? (
+                  <UserForm
+                    editMode={true}
+                    onCancel={handleFormClose}
+                    initialData={userData} // Pasa los datos al formulario
+                  />
+                ) : (
+                  <p>Loading user data...</p>
+                )}
               </div>
             </SheetContent>
           </Sheet>

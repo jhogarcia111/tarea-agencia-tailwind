@@ -1,72 +1,150 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { fetchTasks, fetchTasksByUserId, fetchTasksByClientId } from "../lib/clientService";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "../components/ui/dialog";
 
-const TaskTable = ({ tasks }) => {
-  const [filters, setFilters] = useState({
-    status: '',
-    priority: '',
-    dueDate: ''
-  });
+export function TaskTable() {
+  const [tasks, setTasks] = useState([]);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState({ type: "all", id: null });
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters({ ...filters, [name]: value });
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        let taskData;
+        if (filter.type === "user" && filter.id) {
+          taskData = await fetchTasksByUserId(filter.id);
+        } else if (filter.type === "client" && filter.id) {
+          taskData = await fetchTasksByClientId(filter.id);
+        } else {
+          taskData = await fetchTasks();
+        }
+        setTasks(taskData);
+      } catch (error) {
+        console.error("Error fetching tasks:", error);
+        setError("Failed to fetch tasks");
+      }
+    };
+    fetchData();
+  }, [filter]);
+
+  const handleFilterChange = (type, id) => {
+    setFilter({ type, id });
   };
 
-  const filteredTasks = tasks.filter((task) => {
-    return (
-      (filters.status ? task.status === filters.status : true) &&
-      (filters.priority ? task.priority === filters.priority : true) &&
-      (filters.dueDate ? task.dueDate === filters.dueDate : true)
-    );
-  });
+  const handleDelete = async (id) => {
+    try {
+      setTasks(tasks.filter((task) => task.id !== id));
+      setSelectedTask(null);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    }
+  };
+
+  const handleCancel = () => {
+    setDialogOpen(false);
+    setSelectedTask(null);
+  };
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
   return (
     <div>
       <div className="filters">
-        <select name="status" onChange={handleFilterChange} value={filters.status}>
-          <option value="">Todos los estados</option>
-          <option value="pending">Pendiente</option>
-          <option value="in-progress">En progreso</option>
-          <option value="completed">Completado</option>
-        </select>
-
-        <select name="priority" onChange={handleFilterChange} value={filters.priority}>
-          <option value="">Todas las prioridades</option>
-          <option value="low">Baja</option>
-          <option value="medium">Media</option>
-          <option value="high">Alta</option>
-        </select>
-
-        <input
-          type="date"
-          name="dueDate"
-          onChange={handleFilterChange}
-          value={filters.dueDate}
-        />
+        <button onClick={() => handleFilterChange("all", null)}>All Tasks</button>
+        <button onClick={() => handleFilterChange("user", 1)}>User 1 Tasks</button>
+        <button onClick={() => handleFilterChange("client", 1)}>Client 1 Tasks</button>
       </div>
 
-      <table>
+      <table className="min-w-full bg-white border border-gray-200">
         <thead>
           <tr>
-            <th>Título</th>
-            <th>Estado</th>
-            <th>Prioridad</th>
-            <th>Fecha de vencimiento</th>
+            <th className="px-4 py-2 border-b">ID</th>
+            <th className="px-4 py-2 border-b">Título</th>
+            <th className="px-4 py-2 border-b">Descripción</th>
+            <th className="px-4 py-2 border-b">Estado</th>
+            <th className="px-4 py-2 border-b">Usuario ID</th>
+            <th className="px-4 py-2 border-b">Cliente ID</th>
+            <th className="px-4 py-2 border-b">Creado</th>
+            <th className="px-4 py-2 border-b">Actualizado</th>
+            <th className="px-4 py-2 border-b">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {filteredTasks.map((task) => (
+          {tasks.map((task) => (
             <tr key={task.id}>
-              <td>{task.title}</td>
-              <td>{task.status}</td>
-              <td>{task.priority}</td>
-              <td>{task.dueDate}</td>
+              <td className="px-4 py-2 border-b">{task.id}</td>
+              <td className="px-4 py-2 border-b">{task.title}</td>
+              <td className="px-4 py-2 border-b">{task.description}</td>
+              <td className="px-4 py-2 border-b">{task.status}</td>
+              <td className="px-4 py-2 border-b">{task.user_id}</td>
+              <td className="px-4 py-2 border-b">{task.client_id}</td>
+              <td className="px-4 py-2 border-b">{new Date(task.created_at).toLocaleDateString()}</td>
+              <td className="px-4 py-2 border-b">{new Date(task.updated_at).toLocaleDateString()}</td>
+              <td className="px-4 py-2 border-b">
+                <button
+                  className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded"
+                  onClick={() => navigate(`/tasks/edit/${task.id}`)}
+                >
+                  Editar
+                </button>
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <button
+                      className="text-red-600 hover:underline"
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setDialogOpen(true);
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Confirmar eliminación</DialogTitle>
+                      <DialogDescription>
+                        ¿Estás seguro de que deseas eliminar la tarea "
+                        {selectedTask?.title}"? Esta acción no se puede deshacer.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <button
+                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+                        onClick={handleCancel}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        className="px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded"
+                        onClick={() => {
+                          handleDelete(selectedTask.id);
+                          setDialogOpen(false);
+                        }}
+                      >
+                        Confirmar
+                      </button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
-};
-
-export default TaskTable;
+}

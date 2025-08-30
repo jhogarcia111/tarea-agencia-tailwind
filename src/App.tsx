@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Users from "./pages/Users";
 import Clients from "./pages/Clients";
 import Tasks from "./pages/Tasks";
+import Pending from "./pages/Pending";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ErrorLogs from "./pages/ErrorLogs";
@@ -37,7 +38,10 @@ const App = () => {
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/users/*" element={<ProtectedRoute><Users /></ProtectedRoute>} />
               <Route path="/clients/*" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-              <Route path="/tasks/*" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+              <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+              <Route path="/tasks/new" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+              <Route path="/tasks/edit/:id" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+              <Route path="/pending" element={<ProtectedRoute><Pending /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/error-logs" element={<ProtectedRoute requiredRole="admin"><ErrorLogs /></ProtectedRoute>} />
               <Route path="/activity-logs" element={<ProtectedRoute><ActivityLogs /></ProtectedRoute>} />

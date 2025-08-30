@@ -21,8 +21,79 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { useData } from "@/context/DataContext";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 export default function Settings() {
+  const { getSettings, updateSettings } = useData();
+  const [settings, setSettings] = useState({
+    agency_name: '',
+    email: '',
+    website: '',
+    phone: '',
+    address: '',
+    theme_color: '#6366f1',
+    timezone: 'America/Mexico_City',
+    language: 'es'
+  });
+  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Cargar configuración al montar el componente
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const data = await getSettings();
+        setSettings(data);
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        toast.error('Error al cargar la configuración');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSettings();
+  }, [getSettings]);
+
+  // Manejar cambios en los campos
+  const handleInputChange = (field: string, value: string) => {
+    setSettings(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Guardar configuración
+  const handleSaveSettings = async () => {
+    setLoading(true);
+    try {
+      await updateSettings(settings);
+      toast.success('Configuración guardada exitosamente');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Error al guardar la configuración');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <div className="space-y-6 md:pl-16">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Cargando configuración...</p>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="space-y-6 md:pl-16">
@@ -54,7 +125,8 @@ export default function Settings() {
                   <Label htmlFor="agency-name">Nombre de la Agencia</Label>
                   <Input
                     id="agency-name"
-                    defaultValue="Mi Agencia de Marketing"
+                    value={settings.agency_name}
+                    onChange={(e) => handleInputChange('agency_name', e.target.value)}
                     placeholder="Nombre de la Agencia"
                   />
                 </div>
@@ -63,7 +135,8 @@ export default function Settings() {
                   <Input
                     id="agency-email"
                     type="email"
-                    defaultValue="contacto@miagencia.com"
+                    value={settings.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="Correo electrónico de contacto"
                   />
                 </div>
@@ -71,14 +144,37 @@ export default function Settings() {
                   <Label htmlFor="agency-website">Sitio Web</Label>
                   <Input
                     id="agency-website"
-                    defaultValue="https://miagencia.com"
+                    value={settings.website}
+                    onChange={(e) => handleInputChange('website', e.target.value)}
                     placeholder="URL del sitio web"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="agency-phone">Teléfono</Label>
+                  <Input
+                    id="agency-phone"
+                    value={settings.phone || ''}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="Número de teléfono"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="agency-address">Dirección</Label>
+                  <Input
+                    id="agency-address"
+                    value={settings.address || ''}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    placeholder="Dirección de la agencia"
                   />
                 </div>
               </CardContent>
               <CardFooter className="justify-end">
-                <Button className="bg-brand-500 hover:bg-brand-600">
-                  Guardar Cambios
+                <Button 
+                  className="bg-brand-500 hover:bg-brand-600"
+                  onClick={handleSaveSettings}
+                  disabled={loading}
+                >
+                  {loading ? 'Guardando...' : 'Guardar Cambios'}
                 </Button>
               </CardFooter>
             </Card>
@@ -93,7 +189,7 @@ export default function Settings() {
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
                   <Label htmlFor="language">Idioma</Label>
-                  <Select defaultValue="es">
+                  <Select value={settings.language} onValueChange={(value) => handleInputChange('language', value)}>
                     <SelectTrigger id="language">
                       <SelectValue placeholder="Seleccione un idioma" />
                     </SelectTrigger>
@@ -106,40 +202,55 @@ export default function Settings() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="timezone">Zona Horaria</Label>
-                  <Select defaultValue="europe-madrid">
+                  <Select value={settings.timezone} onValueChange={(value) => handleInputChange('timezone', value)}>
                     <SelectTrigger id="timezone">
                       <SelectValue placeholder="Seleccione una zona horaria" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="europe-madrid">
+                      <SelectItem value="America/Mexico_City">
+                        América/México (GMT-6)
+                      </SelectItem>
+                      <SelectItem value="America/New_York">
+                        América/Nueva York (GMT-5)
+                      </SelectItem>
+                      <SelectItem value="Europe/Madrid">
                         Europa/Madrid (GMT+1)
                       </SelectItem>
-                      <SelectItem value="europe-london">
+                      <SelectItem value="Europe/London">
                         Europa/Londres (GMT)
                       </SelectItem>
-                      <SelectItem value="america-new_york">
-                        América/Nueva York (GMT-5)
+                      <SelectItem value="Asia/Tokyo">
+                        Asia/Tokio (GMT+9)
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="date-format">Formato de Fecha</Label>
-                  <Select defaultValue="dd-mm-yyyy">
-                    <SelectTrigger id="date-format">
-                      <SelectValue placeholder="Seleccione un formato de fecha" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="dd-mm-yyyy">DD/MM/YYYY</SelectItem>
-                      <SelectItem value="mm-dd-yyyy">MM/DD/YYYY</SelectItem>
-                      <SelectItem value="yyyy-mm-dd">YYYY/MM/DD</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="theme-color">Color del Tema</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="theme-color"
+                      type="color"
+                      value={settings.theme_color}
+                      onChange={(e) => handleInputChange('theme_color', e.target.value)}
+                      className="w-16 h-10 p-1"
+                    />
+                    <Input
+                      value={settings.theme_color}
+                      onChange={(e) => handleInputChange('theme_color', e.target.value)}
+                      placeholder="#6366f1"
+                      className="flex-1"
+                    />
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="justify-end">
-                <Button className="bg-brand-500 hover:bg-brand-600">
-                  Guardar Cambios
+                <Button 
+                  className="bg-brand-500 hover:bg-brand-600"
+                  onClick={handleSaveSettings}
+                  disabled={loading}
+                >
+                  {loading ? 'Guardando...' : 'Guardar Cambios'}
                 </Button>
               </CardFooter>
             </Card>

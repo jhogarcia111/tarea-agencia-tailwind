@@ -22,10 +22,21 @@ export const updateUser = async (id, userData) => {
 
 export const deleteUser = async (id) => {
   try {
+    if (!id || typeof id !== 'number') {
+      throw new Error(`Invalid user ID: ${id}`);
+    }
+
     const response = await apiClient.delete(`/api/users/${id}`);
     return response.data;
   } catch (error) {
-    console.error('Error deleting user:', error);
+    if (error.response) {
+      console.error(`Server responded with status ${error.response.status}:`, error.response.data);
+      if (error.response.status === 400) {
+        throw new Error(`Bad Request: ${error.response.data.message || 'Invalid request'}`);
+      }
+    } else {
+      console.error('Error deleting user:', error);
+    }
     throw new Error('Error deleting user');
   }
 };
@@ -37,6 +48,16 @@ export const createUser = async (userData) => {
   } catch (error) {
     console.error('Error creating user:', error);
     throw new Error('Error creating user');
+  }
+};
+
+export const getUserById = async (id) => {
+  try {
+    const response = await apiClient.get(`/api/users/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching user with ID ${id}:`, error);
+    throw new Error('Error fetching user details');
   }
 };
 

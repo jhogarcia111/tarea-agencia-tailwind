@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
 import { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { toast } from "sonner";
@@ -33,8 +34,8 @@ interface TaskFormProps {
     assignee: string;
     status: string;
     priority: string;
-    dueDate: string;
-    createdDate?: string;
+    dueDate?: Date;
+    createdDate?: Date;
   };
 }
 
@@ -58,27 +59,31 @@ export function TaskForm({
     assignee: initialData?.assignee || "",
     status: initialData?.status || autoStatus || "pending",
     priority: initialData?.priority || "medium",
-    dueDate: initialData?.dueDate || getTomorrow(),
-    createdDate: initialData?.createdDate || new Date().toISOString().split('T')[0], // New field
+    dueDate: initialData?.dueDate ? new Date(initialData.dueDate) : undefined,
+    createdDate: initialData?.createdDate ? new Date(initialData.createdDate) : new Date(),
   });
 
   useEffect(() => {
     if (editMode && id) {
       const taskData = getTaskById(Number(id));
       if (taskData) {
+        // Obtener nombres de cliente y usuario
+        const client = clients.find(c => c.id === taskData.client_id);
+        const user = users.find(u => u.id === taskData.user_id);
+        
         setFormData({
           title: taskData.title,
           description: taskData.description || "",
-          client: taskData.client,
-          assignee: taskData.assignee,
-          status: autoStatus || taskData.status,
-          priority: taskData.priority,
-          dueDate: taskData.dueDate,
-          createdDate: taskData.createdDate || new Date().toISOString().split('T')[0],
+          client: client?.name || "",
+          assignee: user?.name || "",
+          status: autoStatus || taskData.status || "pending",
+          priority: taskData.priority || "medium",
+          dueDate: taskData.dueDate ? new Date(taskData.dueDate) : undefined,
+          createdDate: taskData.created_at ? new Date(taskData.created_at) : new Date(),
         });
       }
     }
-  }, [editMode, id, getTaskById, autoStatus]);
+  }, [editMode, id, getTaskById, autoStatus, clients, users]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -87,41 +92,63 @@ export function TaskForm({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (editMode && id) {
-      const taskData = getTaskById(Number(id));
-      if (taskData) {
-        updateTask({
+    try {
+      if (editMode && id) {
+        const taskData = getTaskById(Number(id));
+        if (taskData) {
+                  // Find client and user IDs based on names
+        const selectedClient = clients.find(c => c.name === formData.client);
+        const selectedUser = users.find(u => u.name === formData.assignee);
+        
+        if (!selectedClient || !selectedUser) {
+          toast.error("Cliente o usuario no encontrado");
+          return;
+        }
+
+        await updateTask({
           ...taskData,
           title: formData.title,
           description: formData.description,
-          client: formData.client,
-          assignee: formData.assignee,
+          client_id: selectedClient.id,
+          user_id: selectedUser.id,
           status: formData.status as 'pending' | 'in-progress' | 'completed',
           priority: formData.priority as 'low' | 'medium' | 'high',
-          dueDate: formData.dueDate,
+          dueDate: formData.dueDate?.toISOString(),
         });
-        toast.success("Tarea actualizada con éxito");
-      }
-    } else {
-      addTask({
-        title: formData.title,
-        description: formData.description,
-        client: formData.client,
-        assignee: formData.assignee,
-        status: formData.status as 'pending' | 'in-progress' | 'completed',
-        priority: formData.priority as 'low' | 'medium' | 'high',
-        dueDate: formData.dueDate,
-      });
-      toast.success("Tarea creada con éxito");
-    }
+          toast.success("Tarea actualizada con éxito");
+        }
+      } else {
+        // Find client and user IDs based on names
+        const selectedClient = clients.find(c => c.name === formData.client);
+        const selectedUser = users.find(u => u.name === formData.assignee);
+        
+        if (!selectedClient || !selectedUser) {
+          toast.error("Cliente o usuario no encontrado");
+          return;
+        }
 
-    if (onSubmit) {
-      onSubmit(formData);
-    } else {
-      navigate('/tasks');
+        await addTask({
+          title: formData.title,
+          description: formData.description,
+          client_id: selectedClient.id,
+          user_id: selectedUser.id,
+          status: formData.status as 'pending' | 'in-progress' | 'completed',
+          dueDate: formData.dueDate?.toISOString(),
+        });
+        toast.success("Tarea creada con éxito");
+      }
+
+      if (onSubmit) {
+        onSubmit(formData);
+      } else {
+        navigate('/tasks');
+      }
+    } catch (error) {
+      console.error('Error saving task:', error);
+      toast.error("Error al guardar la tarea");
     }
   };
 
@@ -168,16 +195,15 @@ export function TaskForm({
               required
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="createdDate">Fecha Creada</Label>
-            <Input
-              id="createdDate"
-              name="createdDate"
-              type="date"
-              value={formData.createdDate}
-              readOnly
-            />
-          </div>
+                     <div className="grid gap-2">
+             <Label htmlFor="createdDate">Fecha Creada</Label>
+             <DatePicker
+               date={formData.createdDate}
+               onDateChange={(date) => setFormData(prev => ({ ...prev, createdDate: date || new Date() }))}
+               placeholder="Fecha de creación"
+               disabled={true}
+             />
+           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="client">Cliente</Label>
@@ -261,17 +287,14 @@ export function TaskForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="dueDate">Fecha Límite</Label>
-              <Input
-                id="dueDate"
-                name="dueDate"
-                type="date"
-                value={formData.dueDate}
-                onChange={handleChange}
-                required
-              />
-            </div>
+                         <div className="grid gap-2">
+               <Label htmlFor="dueDate">Fecha Límite</Label>
+               <DatePicker
+                 date={formData.dueDate}
+                 onDateChange={(date) => setFormData(prev => ({ ...prev, dueDate: date }))}
+                 placeholder="Seleccionar fecha límite"
+               />
+             </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
@@ -287,8 +310,4 @@ export function TaskForm({
   );
 }
 
-function getTomorrow() {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0];
-}
+

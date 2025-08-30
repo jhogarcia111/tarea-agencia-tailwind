@@ -7,9 +7,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Plus } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { TaskDeadlineCalendar } from "@/components/ui/calendar";
+import { TaskTrendChart } from "@/components/dashboard/TaskTrendChart";
 
 export default function Tasks() {
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
@@ -19,6 +21,8 @@ export default function Tasks() {
   const queryParams = new URLSearchParams(location.search);
   const autoStatus = queryParams.get('setStatus');
 
+
+
   const openNewTaskForm = () => {
     navigate("/tasks/new");
     setIsTaskFormOpen(true);
@@ -27,6 +31,10 @@ export default function Tasks() {
   const handleFormClose = () => {
     navigate("/tasks");
     setIsTaskFormOpen(false);
+  };
+
+  const handleDateClick = (date: Date) => {
+    setSelectedDate(date);
   };
 
   return (
@@ -45,12 +53,39 @@ export default function Tasks() {
           </Button>
         </div>
 
-        <div className="space-y-6">
-          <TaskDeadlineCalendar />
+        <div className="grid gap-6 md:grid-cols-2">
+          <TaskDeadlineCalendar onDateClick={handleDateClick} />
+          <TaskTrendChart />
         </div>
 
         {/* Main content */}
-        {!isNewTaskRoute && !isEditTaskRoute && <TaskTable />}
+        {!isNewTaskRoute && !isEditTaskRoute && (
+          <>
+            {selectedDate && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">
+                    Tareas para {selectedDate.toLocaleDateString('es-ES', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </h2>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setSelectedDate(null)}
+                  >
+                    Ver todas las tareas
+                  </Button>
+                </div>
+                <TaskTable selectedDate={selectedDate} />
+              </div>
+            )}
+            {!selectedDate && <TaskTable />}
+          </>
+        )}
 
         {/* New task form */}
         {isNewTaskRoute && (
@@ -72,7 +107,7 @@ export default function Tasks() {
         {/* Edit task form */}
         {isEditTaskRoute && id && (
           <Sheet open={true} onOpenChange={handleFormClose}>
-            <SheetContent className="sm:max-w-md overflow-y-auto">
+            <SheetContent className="sm:max-w-md overflow-y-auto" style={{ zIndex: 9999 }}>
               <SheetHeader>
                 <SheetTitle>Editar Tarea</SheetTitle>
               </SheetHeader>

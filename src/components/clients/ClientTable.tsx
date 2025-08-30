@@ -19,22 +19,23 @@ import { BadgeCheck, Briefcase, Edit, MoreHorizontal, Search, Trash2, X } from "
 import { Badge } from "../ui/badge";
 import { toast } from "sonner";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { fetchClients, deleteClient as deleteClientService } from "@/lib/clientService";
+import { useNavigate } from "react-router-dom";
 
 export function ClientTable() {
   const [clients, setClients] = useState([]);
   const [filterText, setFilterText] = useState("");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [clientToDelete, setClientToDelete] = useState<number | null>(null);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadClients = async () => {
@@ -57,25 +58,22 @@ export function ClientTable() {
       client.industry.toLowerCase().includes(filterText.toLowerCase())
   );
 
-  const handleDeleteClick = (clientId: number) => {
-    setClientToDelete(clientId);
-    setDeleteDialogOpen(true);
+  const handleDelete = async (id) => {
+    console.log(`Attempting to delete client with ID: ${id}`); // Log the client ID
+    try {
+      await deleteClientService(id);
+      setClients((prevClients) => prevClients.filter((client) => client.id !== id));
+      toast.success("Cliente eliminado con éxito");
+      setSelectedClient(null);
+    } catch (error) {
+      console.error("Error deleting client:", error.response || error.message || error);
+      toast.error("Error al eliminar el cliente. Verifique el ID o el servidor.");
+    }
   };
 
-  const confirmDelete = async () => {
-    if (clientToDelete !== null) {
-      try {
-        await deleteClientService(clientToDelete);
-        setClients((prevClients) => prevClients.filter((client) => client.id !== clientToDelete));
-        toast.success("Cliente eliminado con éxito");
-      } catch (error) {
-        console.error("Error deleting client:", error);
-        toast.error("Error al eliminar el cliente");
-      } finally {
-        setDeleteDialogOpen(false);
-        setClientToDelete(null);
-      }
-    }
+  const handleCancel = () => {
+    setDialogOpen(false);
+    setSelectedClient(null);
   };
 
   return (
@@ -136,7 +134,6 @@ export function ClientTable() {
                   <tr
                     key={client.id}
                     className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
-                    onClick={() => window.location.href = `/clients/edit/${client.id}`}
                   >
                     <td className="p-4 align-middle">
                       <div>
@@ -156,6 +153,12 @@ export function ClientTable() {
                       <Badge>{client.taskCount} tareas</Badge>
                     </td>
                     <td className="p-4 align-middle text-right">
+                      <Button
+                        variant="default"
+                        onClick={() => navigate(`/clients/edit/${client.id}`)}
+                      >
+                        Edit
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -176,9 +179,48 @@ export function ClientTable() {
                             <Briefcase className="h-4 w-4 mr-2" />
                             Ver tareas
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteClick(client.id)} className="text-red-500">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Eliminar
+                          <DropdownMenuItem>
+                            <Dialog open={dialogOpen} onOpenChange={(isOpen) => {
+                              if (!isOpen) {
+                                handleCancel(); // Ensure proper cleanup when dialog is closed
+                              }
+                            }}>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent event propagation issues
+                                    setSelectedClient(client);
+                                    setDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Eliminar
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Confirmar eliminación</DialogTitle>
+                                  <DialogDescription>
+                                    ¿Estás seguro de que deseas eliminar al cliente "{selectedClient?.name}"? Esta acción no se puede deshacer.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                  <Button variant="secondary" onClick={handleCancel}>
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() => {
+                                      handleDelete(selectedClient.id);
+                                      setDialogOpen(false);
+                                    }}
+                                  >
+                                    Confirmar
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -190,23 +232,6 @@ export function ClientTable() {
           </div>
         </div>
       </CardContent>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. Eliminarás permanentemente el cliente y todas sus tareas asociadas.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }
